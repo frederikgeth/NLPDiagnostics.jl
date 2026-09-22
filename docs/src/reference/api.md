@@ -1,7 +1,7 @@
 # Stable API reference
 
 New application code should prefer the deliberately small
-`NLPDiagnostics.Stable` facade. Its 27 exports cover the solver-neutral path
+`NLPDiagnostics.Stable` facade. Its 31 exports cover the solver-neutral path
 from a represented model or explicit numerical point to typed findings and
 renderer-neutral data. The facade is additive-only during the current release
 cycle; the exact policy and executable surface audit are recorded in the
@@ -22,6 +22,7 @@ expected = Set((
     :EvaluationPointProvenance,
     :NumericalEvaluation,
     :HessianDensitySummary,
+    :ObjectiveConsistencySummary,
     :CoefficientRange,
     :CoefficientProfile,
     :ModelSummary,
@@ -39,6 +40,9 @@ expected = Set((
     :model_summary_data,
     :hessian_density_summary,
     :hessian_density_summary_data,
+    :objective_consistency_summary,
+    :objective_consistency_summary_data,
+    :objective_consistency_report,
 ))
 @assert setdiff(Set(names(NLPDiagnostics.Stable)), Set((:Stable,))) == expected
 length(expected)
@@ -144,6 +148,7 @@ research-facing API.
 | `EvaluationPointProvenance` | Origin, completeness, and metadata for a point. |
 | `NumericalEvaluation` | Values and derivatives observed at one exact point. |
 | `HessianDensitySummary` | Declared or candidate Hessian structure compared with numerical nonzeros at one point and tolerance. |
+| `ObjectiveConsistencySummary` | Solver objective versus independent endpoint evaluation, plus an affine primal-dual gap only when its prerequisites pass. |
 | `CoefficientRange` | Magnitude counts and span for one explicitly defined static coefficient family. |
 | `CoefficientProfile` | Static algebraic ranges, linear-matrix density, coverage limits, and observations. |
 | `ModelSummary` | Compact model inventory, fingerprint provenance, bridge observability, and coefficient profile. |
@@ -159,6 +164,7 @@ NLPDiagnostics.EvaluationPointKind
 NLPDiagnostics.EvaluationPointProvenance
 NLPDiagnostics.NumericalEvaluation
 NLPDiagnostics.HessianDensitySummary
+NLPDiagnostics.ObjectiveConsistencySummary
 NLPDiagnostics.CoefficientRange
 NLPDiagnostics.CoefficientProfile
 NLPDiagnostics.ModelSummary
@@ -173,6 +179,8 @@ NLPDiagnostics.analyze
 NLPDiagnostics.coefficient_profile
 NLPDiagnostics.model_summary
 NLPDiagnostics.hessian_density_summary
+NLPDiagnostics.objective_consistency_summary
+NLPDiagnostics.objective_consistency_report
 ```
 
 `snapshot` records public represented data and opaque-source markers. It does
@@ -191,6 +199,7 @@ NLPDiagnostics.coefficient_range_data
 NLPDiagnostics.coefficient_profile_data
 NLPDiagnostics.model_summary_data
 NLPDiagnostics.hessian_density_summary_data
+NLPDiagnostics.objective_consistency_summary_data
 ```
 
 The `*_data` functions return dictionaries and arrays containing plain

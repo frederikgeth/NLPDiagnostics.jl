@@ -47,6 +47,7 @@ include("hessian_density.jl")
 include("scaling_covariance.jl")
 include("block_scaling_covariance.jl")
 include("solver_duals.jl")
+include("objective_consistency.jl")
 
 @testset "typed unavailable reason schema" begin
     @test NLPDiagnostics.Advanced.UnavailableReason ===
@@ -116,7 +117,7 @@ end
         name -> name != :Stable,
         names(NLPDiagnostics.Stable; all=false, imported=false),
     )
-    @test length(stable_exports) == 27
+    @test length(stable_exports) == 31
     @test all(isdefined(NLPDiagnostics.Stable, name) for name in stable_exports)
     @test NLPDiagnostics.Stable.ModelSnapshot === NLPDiagnostics.ModelSnapshot
     @test NLPDiagnostics.Stable.snapshot === NLPDiagnostics.snapshot
@@ -127,6 +128,8 @@ end
           NLPDiagnostics.coefficient_profile
     @test NLPDiagnostics.Stable.hessian_density_summary ===
           NLPDiagnostics.hessian_density_summary
+    @test NLPDiagnostics.Stable.objective_consistency_summary ===
+          NLPDiagnostics.objective_consistency_summary
 
     tier_inventory = read(
         joinpath(normpath(joinpath(@__DIR__, "..")), "docs", "api_tier_inventory_summary.json"),
@@ -164,8 +167,8 @@ end
     ))
     @test stable_surface_summary["schema_version"] == "nlpdiagnostics-stable-api-surface-v1"
     @test stable_surface_summary["status"] == "pass"
-    @test stable_surface_summary["declared_export_count"] == 27
-    @test stable_surface_summary["runtime_export_count"] == 27
+    @test stable_surface_summary["declared_export_count"] == 31
+    @test stable_surface_summary["runtime_export_count"] == 31
     @test stable_surface_summary["surface_matches"] == true
     @test stable_surface_summary["smoke"]["status"] == "pass"
 

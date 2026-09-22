@@ -268,11 +268,15 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `objective_gradient_directional_crosscheck_mismatch` — `src/analysis/crosscheck.jl`
 - `objective_gradient_directional_crosscheck_unavailable` — `src/analysis/crosscheck.jl`
 - `objective_jacobian_scale_unavailable` — `src/analysis/numerical.jl`
+- `objective_value_comparison_unavailable` — `src/numerics/objective_consistency.jl`
 - `partial_finite_difference_jacobian_derivatives` — `src/analysis/numerical.jl`
 - `persistent_jacobian_expected_mode_span_unaligned` — `src/analysis/numerical.jl`
 - `persistent_jacobian_expected_mode_unaligned` — `src/analysis/numerical.jl`
 - `physical_interpretation_limited_by_point_provenance` — `src/analysis/numerical.jl`
 - `possible_nonsmoothness` — `src/analysis/crosscheck.jl`
+- `primal_dual_gap_exceeds_tolerance` — `src/numerics/objective_consistency.jl`
+- `primal_dual_gap_unavailable` — `src/numerics/objective_consistency.jl`
+- `primal_dual_gap_within_tolerance` — `src/numerics/objective_consistency.jl`
 - `recovered_active_multiplier_complementarity_residual` — `src/analysis/activity.jl`
 - `recovered_active_multiplier_sign_violation` — `src/analysis/activity.jl`
 - `reduced_hessian_active_jacobian_rank_persistence_unaligned` — `src/analysis/numerical.jl`
@@ -303,6 +307,7 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `smallest_singular_backend_crosscheck_dimension_below_structural_nullity` — `src/analysis/numerical.jl`
 - `smallest_singular_backend_crosscheck_scaling_intervention` — `src/analysis/numerical.jl`
 - `smallest_singular_backend_crosscheck_unavailable` — `src/analysis/numerical.jl`
+- `solver_result_objective_consistent` — `src/numerics/objective_consistency.jl`
 - `sparse_jacobian_pattern_rank_deficiency` — `src/analysis/numerical.jl`
 - `sparse_qr_jacobian_rank_deficiency` — `src/analysis/numerical.jl`
 - `sparse_qr_no_right_nullspace_under_policy` — `src/analysis/numerical.jl`
@@ -381,7 +386,7 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `solver_postmortem_unavailable` — `src/analysis/postmortem.jl`
 - `solver_reported_infeasibility` — `src/analysis/postmortem.jl`
 - `solver_restoration_unsuccessful` — `src/analysis/postmortem.jl`
-- `solver_result_objective_mismatch` — `src/analysis/postmortem.jl`
+- `solver_result_objective_mismatch` — `src/analysis/postmortem.jl`, `src/numerics/objective_consistency.jl`
 - `solver_result_point_unavailable` — `src/analysis/postmortem.jl`
 - `solver_slow_progress` — `src/analysis/postmortem.jl`
 - `solver_termination_limit` — `src/analysis/postmortem.jl`
@@ -494,4 +499,4 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `solver_conflict_not_found` — `src/NLPDiagnostics.jl`
 - `solver_conflict_unavailable` — `src/NLPDiagnostics.jl`
 
-Inventory count: **448** literal finding codes.
+Inventory count: **453** literal finding codes.

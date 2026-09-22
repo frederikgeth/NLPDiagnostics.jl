@@ -853,6 +853,53 @@ struct HessianDensitySummary{T<:AbstractFloat}
 end
 
 """
+Independent objective-value comparison and, when justified, an affine
+primal-dual gap at one solver result.
+
+`comparison_available` concerns only the solver-reported and independently
+evaluated primal objectives. `gap_available` is stricter: it requires a
+continuous scalar affine model, a feasible primal point, and a numerically
+dual-feasible public multiplier representative under the recorded policies.
+"""
+struct ObjectiveConsistencySummary{T<:AbstractFloat}
+    point::Union{Nothing,EvaluationPoint{T}}
+    result_index::Int
+    objective_sense::Symbol
+    termination_status::String
+    primal_status::String
+    dual_status::String
+    solver_objective_source::Symbol
+    solver_objective_value::Union{Nothing,T}
+    reevaluated_objective_value::Union{Nothing,T}
+    comparison_available::Bool
+    comparison_reason::Union{Nothing,String}
+    consistent::Union{Nothing,Bool}
+    absolute_difference::Union{Nothing,T}
+    relative_difference::Union{Nothing,T}
+    absolute_tolerance::T
+    relative_tolerance::T
+    consistency_threshold::Union{Nothing,T}
+    gap_available::Bool
+    gap_reason::Union{Nothing,String}
+    gap_basis::Symbol
+    dual_objective_value::Union{Nothing,T}
+    primal_dual_gap::Union{Nothing,T}
+    relative_primal_dual_gap::Union{Nothing,T}
+    gap_absolute_tolerance::T
+    gap_relative_tolerance::T
+    gap_threshold::Union{Nothing,T}
+    gap_passed::Union{Nothing,Bool}
+    primal_feasible::Union{Nothing,Bool}
+    dual_feasible::Union{Nothing,Bool}
+    maximum_primal_violation::Union{Nothing,T}
+    maximum_stationarity_residual::Union{Nothing,T}
+    maximum_dual_violation::Union{Nothing,T}
+    methods::Vector{Symbol}
+    failures::Vector{String}
+    observations::Vector{String}
+end
+
+"""
 Spectrum and inertia of a Hessian projected into a selected Jacobian nullspace.
 
 The active rows are explicit because activity cannot be inferred reliably from

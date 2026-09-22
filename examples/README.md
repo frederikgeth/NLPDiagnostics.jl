@@ -9,6 +9,7 @@ julia --project=docs examples/numerical_rank_at_a_point.jl
 julia --project=docs examples/model_summary_and_units.jl
 julia --project=docs examples/bounds_as_constraints.jl
 julia --project=docs examples/hessian_density.jl
+julia --project=docs examples/objective_consistency.jl
 julia --project=docs examples/controlled_scaling_solver_trace.jl
 julia --project=docs examples/controlled_opf_formulations.jl
 ```

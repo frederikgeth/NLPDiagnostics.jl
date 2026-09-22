@@ -15,6 +15,20 @@ NLPDiagnostics.model_summary(model::JuMP.Model; kwargs...) =
 NLPDiagnostics.hessian_density_summary(model::JuMP.Model, point; kwargs...) =
     NLPDiagnostics.hessian_density_summary(JuMP.backend(model), point; kwargs...)
 
+NLPDiagnostics.objective_consistency_summary(model::JuMP.Model; kwargs...) =
+    NLPDiagnostics.objective_consistency_summary(JuMP.backend(model); kwargs...)
+
+NLPDiagnostics.objective_consistency_summary(
+    model::JuMP.Model,
+    evaluation::NLPDiagnostics.NumericalEvaluation;
+    kwargs...,
+) = NLPDiagnostics.objective_consistency_summary(
+    JuMP.backend(model), evaluation; kwargs...,
+)
+
+NLPDiagnostics.objective_consistency_report(model::JuMP.Model; kwargs...) =
+    NLPDiagnostics.objective_consistency_report(JuMP.backend(model); kwargs...)
+
 NLPDiagnostics.analyze(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.analyze(JuMP.backend(model); kwargs...)
 

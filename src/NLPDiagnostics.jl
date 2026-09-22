@@ -22,6 +22,7 @@ include("numerics/degeneracy.jl")
 include("numerics/hessian.jl")
 include("numerics/activity.jl")
 include("numerics/duals.jl")
+include("numerics/objective_consistency.jl")
 include("analysis/matching.jl")
 include("reports/structural_graph.jl")
 include("analysis/domains.jl")
@@ -174,6 +175,7 @@ export JacobianScaleSummary
 export HessianEntry
 export HessianEvaluation
 export HessianDensitySummary
+export ObjectiveConsistencySummary
 export NumericalEvaluation
 export evaluation_call_statistics
 export MFCQScreen
@@ -348,6 +350,9 @@ export evaluate_numerical
 export evaluate_lagrangian_hessian
 export hessian_density_summary
 export hessian_density_summary_data
+export objective_consistency_summary
+export objective_consistency_summary_data
+export objective_consistency_report
 export evaluator_capabilities
 export expression_numerical_risks
 export fixed_operator_value

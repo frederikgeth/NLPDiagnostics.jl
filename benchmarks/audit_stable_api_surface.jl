@@ -85,6 +85,20 @@ try
     hessian_density = NLPDiagnostics.Stable.hessian_density_summary(model, point)
     hessian_density_data =
         NLPDiagnostics.Stable.hessian_density_summary_data(hessian_density)
+    objective_consistency =
+        NLPDiagnostics.Stable.objective_consistency_summary(
+            model,
+            evaluation;
+            solver_objective_value = 0.0,
+        )
+    objective_consistency_data =
+        NLPDiagnostics.Stable.objective_consistency_summary_data(
+            objective_consistency,
+        )
+    objective_consistency_report =
+        NLPDiagnostics.Stable.objective_consistency_report(
+            objective_consistency,
+        )
     smoke["model_variable_count"] = MOI.get(model, MOI.NumberOfVariables())
     smoke["snapshot_variable_count"] = length(snapshot.variables)
     smoke["report_finding_count"] = length(report)
@@ -95,6 +109,13 @@ try
     smoke["hessian_structural_entry_count"] =
         hessian_density.structural_entry_count
     smoke["hessian_data_has_point"] = haskey(hessian_density_data, "point")
+    smoke["objective_comparison_available"] =
+        objective_consistency.comparison_available
+    smoke["objective_gap_available"] = objective_consistency.gap_available
+    smoke["objective_data_has_qualification"] =
+        haskey(objective_consistency_data, "qualification")
+    smoke["objective_report_finding_count"] =
+        length(objective_consistency_report)
 catch error
     smoke["status"] = "failed"
     smoke["error_type"] = string(typeof(error))

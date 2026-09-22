@@ -35,18 +35,17 @@ deeper NLP and OPF evidence layers. The public documentation records the
 | Domain analysis | Supported | Extend operator coverage and keep proven, possible, and point-local domain claims separate. |
 | Convexity analysis | Partial | Add a seeded campaign of domain-valid point pairs that can produce reproducible convexity counterexamples; retain local Hessian inertia as local evidence. |
 | Reduced infeasible subsystem | Supported | Preserve solver-native conflicts and elastic subset tools. Say “IIS” only after irreducibility is verified; otherwise report a reduced infeasible subsystem. |
-| Dual feasibility report | Supported | Add a concise objective re-evaluation check and a primal-dual gap only for formulations where the comparison is mathematically meaningful. |
+| Dual feasibility report | Strong | `objective_consistency_summary` compares public solver and independently evaluated objectives at one exact endpoint. It reports a gap only for a continuous scalar affine model with tolerance-qualified primal and dual representatives. |
 | Hessian analysis | Strong | `hessian_density_summary` now separates declared or candidate structure from point-local numerical nonzeros, including tolerance, method provenance, duplicates, and incomplete coverage. |
 | MIP solution refiner | Outside current scope | Reconsider only after an explicit decision to extend the package beyond continuous NLP and OPF diagnostics. |
 
 The implementation order for the open items is:
 
 1. maintain the delivered model-summary, coefficient, bounds-as-constraints,
-   and Hessian-density front doors and teaching fixtures;
-2. add objective consistency and applicable primal-dual gap checks;
-3. add IDS-style dependent-row localization;
-4. add a reproducible convexity-counterexample campaign; and
-5. keep the MIP solution refiner outside scope unless the mission changes.
+   Hessian-density, and objective-consistency front doors and teaching fixtures;
+2. add IDS-style dependent-row localization;
+3. add a reproducible convexity-counterexample campaign; and
+4. keep the MIP solution refiner outside scope unless the mission changes.
 
 The terminology is part of each acceptance condition. Static coefficient
 ranges must not be labelled Jacobian scales; structural rank must not be
@@ -203,11 +202,12 @@ pending ownership review, while 437 names require manual legacy compatibility
 and migration review. No root-only export is promoted automatically. The
 Advanced facade remains unchanged, while the Stable facade grows only through
 reviewed additive entries. The
-`benchmarks/audit_stable_api_surface.jl` ledger confirms all 27 Stable exports
-match their runtime declaration, all 26 root aliases match by identity, and
-the one-variable snapshot/evaluation/analysis/model-summary/Hessian-density
-smoke path passes. The additive expansion supplies compact model, coefficient,
-and Hessian-density front doors without reclassifying legacy root exports.
+`benchmarks/audit_stable_api_surface.jl` ledger confirms all 31 Stable exports
+match their runtime declaration, all 30 root aliases match by identity, and
+the one-variable snapshot/evaluation/analysis/model-summary/Hessian-density/
+objective-consistency smoke path passes. The additive expansion supplies
+compact model, coefficient, Hessian-density, and objective-consistency front
+doors without reclassifying legacy root exports.
 The complementary `benchmarks/audit_advanced_api_surface.jl` ledger also
 confirms all 14 Advanced exports and root aliases, with typed rank-policy and
 unavailable-reason smoke coverage. Both explicit facades are now executable

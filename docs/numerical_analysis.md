@@ -67,6 +67,26 @@ campaign has a documented policy for another provenance class.
 Serialized `ProfileCase` records include the same `point_trust` object, so
 campaign validators can gate interpretation directly from benchmark artifacts.
 
+## Objective consistency and applicable gaps
+
+`objective_consistency_summary(model)` reads one complete public MOI solver
+result, independently evaluates the represented objective at exactly that
+point, and compares the two values under an absolute-plus-relative tolerance.
+The record retains the result index, point provenance, termination, primal, and
+dual statuses, both objective values, the threshold, and any evaluation failures.
+It does not solve or modify the model.
+
+The same record reports a primal-dual gap only for a continuous scalar affine
+model whose public row duals can be aligned and decomposed into scalar sides.
+The selected point must pass primal feasibility, while the multiplier
+representative must pass stationarity and sign checks under recorded
+tolerances. General nonlinear programs still receive the objective comparison,
+but their gap is explicitly unavailable. This prevents a local NLP objective
+and an unrelated bound-like number from being presented as a global duality
+gap. See the [Objective consistency and applicable
+gaps](https://frederikgeth.github.io/NLPDiagnostics.jl/dev/tutorials/objective-consistency/)
+tutorial for a runnable workflow.
+
 Every model, evaluation point, and numerical evaluator source also receives a
 stable SHA-256 fingerprint. `model_fingerprint(model)` is based on the copied
 public MOI snapshot; `evaluation_point_fingerprint(point)` includes coordinate

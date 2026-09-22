@@ -41,6 +41,7 @@ function area(path::String)
         "analysis/numerical.jl", "analysis/activity.jl", "analysis/degeneracy.jl",
         "analysis/crosscheck.jl", "analysis/scaling.jl", "numerics/degeneracy.jl",
         "numerics/activity.jl", "numerics/hessian.jl", "numerics/duals.jl",
+        "numerics/objective_consistency.jl",
     )) && return "Numerical geometry"
     endswith(path, "analysis/initialization.jl") && return "Initialization"
     endswith(path, "analysis/postmortem.jl") && return "Solver results and traces"
