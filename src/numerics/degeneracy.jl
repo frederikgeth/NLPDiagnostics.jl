@@ -914,7 +914,7 @@ function _sparse_qr_rank_estimate(
             "SuiteSparseQR R factor has $factor_nonzeros nonzeros, exceeding max_factor_nonzeros=$max_factor_nonzeros";
             input_nonzeros, factor_nonzeros, fill_ratio,
         )
-        pivots = T.(abs.(diag(R)))
+        pivots = collect(T, abs.(diag(R)))
         threshold = isempty(pivots) ? policy.absolute_tolerance : max(
             policy.absolute_tolerance,
             policy.relative_tolerance * maximum(pivots),
