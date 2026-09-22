@@ -101,6 +101,65 @@ function _finite_difference_hessian(
     return entries
 end
 
+function _weighted_nonlinear_term(weight, function_value)
+    return MOI.ScalarNonlinearFunction(
+        :*,
+        Any[Float64(weight), function_value],
+    )
+end
+
+function _constructed_lagrangian_hessian(
+    model_snapshot::ModelSnapshot,
+    functions,
+    point::EvaluationPoint{T},
+    objective_weight::T,
+    ordinary_multipliers::Vector{T},
+    skip_objective::Bool,
+) where {T<:AbstractFloat}
+    terms = Any[]
+    if !skip_objective &&
+       !isnothing(model_snapshot.objective) &&
+       !iszero(objective_weight)
+        push!(terms, _weighted_nonlinear_term(
+            objective_weight,
+            model_snapshot.objective.function_value,
+        ))
+    end
+    for (multiplier, function_value) in zip(ordinary_multipliers, functions)
+        iszero(multiplier) && continue
+        push!(terms, _weighted_nonlinear_term(multiplier, function_value))
+    end
+    isempty(terms) && return HessianEntry{T}[]
+    lagrangian = length(terms) == 1 ?
+                 only(terms) : MOI.ScalarNonlinearFunction(:+, terms)
+    try
+        nonlinear_model = MOI.Nonlinear.Model()
+        MOI.Nonlinear.set_objective(nonlinear_model, lagrangian)
+        evaluator = MOI.Nonlinear.Evaluator(
+            nonlinear_model,
+            MOI.Nonlinear.SparseReverseMode(),
+            point.variables,
+        )
+        :Hess in MOI.features_available(evaluator) || return nothing
+        MOI.initialize(evaluator, [:Hess])
+        structure = MOI.hessian_lagrangian_structure(evaluator)
+        values = zeros(Float64, length(structure))
+        MOI.eval_hessian_lagrangian(
+            evaluator,
+            values,
+            Float64.(point.values),
+            1.0,
+            Float64[],
+        )
+        return HessianEntry{T}[
+            HessianEntry{T}(row, column, convert(T, value)) for
+            ((row, column), value) in zip(structure, values)
+        ]
+    catch
+        return nothing
+    end
+end
+
 """
     evaluate_lagrangian_hessian(model, point; ...)
 
@@ -155,7 +214,18 @@ function evaluate_lagrangian_hessian(
         source = ordinary_objective ?
                  _objective_ref(model_snapshot.objective.function_value) :
                  first(sources)
-        if length(point.variables) > max_finite_difference_variables
+        constructed = _constructed_lagrangian_hessian(
+            model_snapshot,
+            functions,
+            point,
+            converted_objective_weight,
+            ordinary_multipliers,
+            !isnothing(block) && block.has_objective,
+        )
+        if !isnothing(constructed)
+            append!(entries, constructed)
+            push!(methods, :exact_constructed_nonlinear_ad)
+        elseif length(point.variables) > max_finite_difference_variables
             complete = false
             push!(
                 failures,
@@ -359,6 +429,222 @@ function evaluate_lagrangian_hessian(
         evaluation_point(model, values; label = label);
         kwargs...,
     )
+end
+
+function _hessian_structure_provenance(methods::Vector{Symbol})
+    isempty(methods) && return :none
+    :finite_difference_function_values in methods &&
+        return length(methods) == 1 ?
+               :finite_difference_dense_candidate :
+               :mixed_declared_and_finite_difference
+    return :declared_derivative_structure
+end
+
+"""
+    hessian_density_summary(hessian; absolute_tolerance = 0,
+                            relative_tolerance = sqrt(eps(T)))
+
+Compare the unique lower-triangular structure exposed by a selected
+Hessian-of-the-Lagrangian evaluation with entries that are numerically nonzero
+at its exact point. Duplicate and transposed positions are combined
+additively. The numerical threshold is
+`absolute_tolerance + relative_tolerance * maximum_absolute_value`.
+
+The structural pattern is the selected derivative source's candidate pattern,
+not proof that every entry is nonzero at every point. A finite-difference
+fallback exposes a dense candidate pattern and is labelled separately from
+declared callback or automatic-differentiation structure.
+"""
+function hessian_density_summary(
+    hessian::HessianEvaluation{T};
+    absolute_tolerance::Real = zero(T),
+    relative_tolerance::Real = sqrt(eps(T)),
+) where {T<:AbstractFloat}
+    absolute = convert(T, absolute_tolerance)
+    relative = convert(T, relative_tolerance)
+    isfinite(absolute) && absolute >= zero(T) ||
+        throw(ArgumentError("absolute_tolerance must be finite and nonnegative"))
+    isfinite(relative) && relative >= zero(T) ||
+        throw(ArgumentError("relative_tolerance must be finite and nonnegative"))
+
+    variable_count = length(hessian.point.variables)
+    combined = Dict{Tuple{Int,Int},T}()
+    for entry in hessian.entries
+        1 <= entry.row <= variable_count ||
+            throw(ArgumentError("Hessian row $(entry.row) is outside 1:$variable_count"))
+        1 <= entry.column <= variable_count ||
+            throw(ArgumentError("Hessian column $(entry.column) is outside 1:$variable_count"))
+        key = minmax(entry.row, entry.column)
+        combined[key] = get(combined, key, zero(T)) + entry.value
+    end
+
+    finite_magnitudes = T[
+        abs(value) for value in values(combined) if isfinite(value)
+    ]
+    maximum_absolute_value = isempty(finite_magnitudes) ?
+                             nothing : maximum(finite_magnitudes)
+    scale = something(maximum_absolute_value, zero(T))
+    threshold = absolute + relative * scale
+    numerical_positions = Set(
+        key for (key, value) in combined
+        if isfinite(value) && abs(value) > threshold
+    )
+    nonfinite_count = count(value -> !isfinite(value), values(combined))
+    structural_entry_count = length(combined)
+    numerical_nonzero_count = length(numerical_positions)
+    numerical_zero_count =
+        structural_entry_count - numerical_nonzero_count - nonfinite_count
+    duplicate_entry_count = length(hessian.entries) - structural_entry_count
+    structural_offdiagonal_count = count(key -> key[1] != key[2], keys(combined))
+    numerical_offdiagonal_count =
+        count(key -> key[1] != key[2], numerical_positions)
+    structural_symmetric_entry_count =
+        structural_entry_count + structural_offdiagonal_count
+    numerical_symmetric_nonzero_count =
+        numerical_nonzero_count + numerical_offdiagonal_count
+    lower_triangle_slot_count = variable_count * (variable_count + 1) ÷ 2
+    full_slot_count = variable_count^2
+    structural_lower_triangle_density = iszero(lower_triangle_slot_count) ?
+        nothing : T(structural_entry_count) / T(lower_triangle_slot_count)
+    numerical_lower_triangle_density = iszero(lower_triangle_slot_count) ?
+        nothing : T(numerical_nonzero_count) / T(lower_triangle_slot_count)
+    structural_symmetric_density = iszero(full_slot_count) ?
+        nothing : T(structural_symmetric_entry_count) / T(full_slot_count)
+    numerical_symmetric_density = iszero(full_slot_count) ?
+        nothing : T(numerical_symmetric_nonzero_count) / T(full_slot_count)
+    numerical_fraction_of_structure = iszero(structural_entry_count) ?
+        nothing : T(numerical_nonzero_count) / T(structural_entry_count)
+    provenance = _hessian_structure_provenance(hessian.methods)
+
+    observations = String[
+        "Density counts use unique lower-triangular Hessian positions; symmetric density expands off-diagonal positions into both matrix halves.",
+    ]
+    if provenance in (:finite_difference_dense_candidate,
+                      :mixed_declared_and_finite_difference)
+        push!(observations,
+            "Finite-difference function-value evaluation contributes a dense candidate pattern; treat its structural density as method provenance rather than declared model sparsity.")
+    end
+    if numerical_zero_count > 0
+        push!(observations,
+            "$numerical_zero_count structural position(s) evaluate at or below the recorded numerical threshold at this point; this does not prove they are globally removable.")
+    end
+    nonfinite_count > 0 && push!(observations,
+        "$nonfinite_count combined structural position(s) are non-finite and are excluded from the numerical-nonzero count.")
+    hessian.complete || push!(observations,
+        "The Hessian evaluation is incomplete, so all density counts describe only the retained partial evidence.")
+
+    return HessianDensitySummary{T}(
+        hessian.point,
+        hessian.objective_weight,
+        copy(hessian.constraint_multipliers),
+        variable_count,
+        lower_triangle_slot_count,
+        length(hessian.entries),
+        structural_entry_count,
+        numerical_nonzero_count,
+        numerical_zero_count,
+        nonfinite_count,
+        duplicate_entry_count,
+        structural_symmetric_entry_count,
+        numerical_symmetric_nonzero_count,
+        structural_lower_triangle_density,
+        numerical_lower_triangle_density,
+        structural_symmetric_density,
+        numerical_symmetric_density,
+        numerical_fraction_of_structure,
+        maximum_absolute_value,
+        absolute,
+        relative,
+        threshold,
+        provenance,
+        sort!(unique(copy(hessian.methods)); by = string),
+        hessian.complete,
+        copy(hessian.failures),
+        observations,
+    )
+end
+
+function hessian_density_summary(
+    model::MOI.ModelLike,
+    point::EvaluationPoint{T};
+    absolute_tolerance::Real = zero(T),
+    relative_tolerance::Real = sqrt(eps(T)),
+    kwargs...,
+) where {T<:AbstractFloat}
+    hessian = evaluate_lagrangian_hessian(model, point; kwargs...)
+    return hessian_density_summary(
+        hessian;
+        absolute_tolerance,
+        relative_tolerance,
+    )
+end
+
+function hessian_density_summary(
+    model::MOI.ModelLike,
+    values::Union{
+        AbstractVector{<:Real},
+        AbstractDict{MOI.VariableIndex,<:Real},
+    };
+    label::AbstractString = "user",
+    kwargs...,
+)
+    point = evaluation_point(model, values; label)
+    return hessian_density_summary(model, point; kwargs...)
+end
+
+"""Return renderer-neutral data for a [`HessianDensitySummary`](@ref)."""
+function hessian_density_summary_data(summary::HessianDensitySummary)
+    return Dict{String,Any}(
+        "schema_version" => "nlpdiagnostics-hessian-density-summary-v1",
+        "point" => _evaluation_point_data(summary.point),
+        "objective_weight" => summary.objective_weight,
+        "constraint_multipliers" => copy(summary.constraint_multipliers),
+        "variable_count" => summary.variable_count,
+        "lower_triangle_slot_count" => summary.lower_triangle_slot_count,
+        "raw_entry_count" => summary.raw_entry_count,
+        "structural_entry_count" => summary.structural_entry_count,
+        "numerical_nonzero_count" => summary.numerical_nonzero_count,
+        "numerical_zero_count" => summary.numerical_zero_count,
+        "nonfinite_count" => summary.nonfinite_count,
+        "duplicate_entry_count" => summary.duplicate_entry_count,
+        "structural_symmetric_entry_count" =>
+            summary.structural_symmetric_entry_count,
+        "numerical_symmetric_nonzero_count" =>
+            summary.numerical_symmetric_nonzero_count,
+        "structural_lower_triangle_density" =>
+            summary.structural_lower_triangle_density,
+        "numerical_lower_triangle_density" =>
+            summary.numerical_lower_triangle_density,
+        "structural_symmetric_density" => summary.structural_symmetric_density,
+        "numerical_symmetric_density" => summary.numerical_symmetric_density,
+        "numerical_fraction_of_structure" =>
+            summary.numerical_fraction_of_structure,
+        "maximum_absolute_value" => summary.maximum_absolute_value,
+        "absolute_tolerance" => summary.absolute_tolerance,
+        "relative_tolerance" => summary.relative_tolerance,
+        "numerical_zero_threshold" => summary.numerical_zero_threshold,
+        "structure_provenance" => string(summary.structure_provenance),
+        "methods" => string.(summary.methods),
+        "complete" => summary.complete,
+        "failures" => [
+            Dict{String,Any}(
+                "stage" => string(failure.stage),
+                "source" => string(failure.source),
+                "affected" => entity_data(failure.affected),
+                "exception_type" => failure.exception_type,
+                "message" => failure.message,
+            ) for failure in summary.failures
+        ],
+        "observations" => copy(summary.observations),
+    )
+end
+
+function Base.show(io::IO, summary::HessianDensitySummary)
+    print(io, "HessianDensitySummary(", summary.variable_count,
+        " variables, structural=", summary.structural_entry_count,
+        ", numerical=", summary.numerical_nonzero_count,
+        ", provenance=", summary.structure_provenance,
+        ", point=\"", summary.point.label, "\")")
 end
 
 function _combined_hessian_matrix(

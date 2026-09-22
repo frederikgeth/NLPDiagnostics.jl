@@ -43,6 +43,7 @@ include("initialization_tolerance_contracts.jl")
 include("fingerprints_and_crosscheck.jl")
 include("model_summary.jl")
 include("bounds_as_constraints.jl")
+include("hessian_density.jl")
 include("scaling_covariance.jl")
 include("block_scaling_covariance.jl")
 include("solver_duals.jl")
@@ -115,7 +116,7 @@ end
         name -> name != :Stable,
         names(NLPDiagnostics.Stable; all=false, imported=false),
     )
-    @test length(stable_exports) == 24
+    @test length(stable_exports) == 27
     @test all(isdefined(NLPDiagnostics.Stable, name) for name in stable_exports)
     @test NLPDiagnostics.Stable.ModelSnapshot === NLPDiagnostics.ModelSnapshot
     @test NLPDiagnostics.Stable.snapshot === NLPDiagnostics.snapshot
@@ -124,6 +125,8 @@ end
     @test NLPDiagnostics.Stable.model_summary === NLPDiagnostics.model_summary
     @test NLPDiagnostics.Stable.coefficient_profile ===
           NLPDiagnostics.coefficient_profile
+    @test NLPDiagnostics.Stable.hessian_density_summary ===
+          NLPDiagnostics.hessian_density_summary
 
     tier_inventory = read(
         joinpath(normpath(joinpath(@__DIR__, "..")), "docs", "api_tier_inventory_summary.json"),
@@ -161,8 +164,8 @@ end
     ))
     @test stable_surface_summary["schema_version"] == "nlpdiagnostics-stable-api-surface-v1"
     @test stable_surface_summary["status"] == "pass"
-    @test stable_surface_summary["declared_export_count"] == 24
-    @test stable_surface_summary["runtime_export_count"] == 24
+    @test stable_surface_summary["declared_export_count"] == 27
+    @test stable_surface_summary["runtime_export_count"] == 27
     @test stable_surface_summary["surface_matches"] == true
     @test stable_surface_summary["smoke"]["status"] == "pass"
 
@@ -13337,7 +13340,7 @@ end
         MOI.set(model, MOI.ObjectiveFunction{Q}(), objective)
         hessian = NLPDiagnostics.evaluate_lagrangian_hessian(model, [1.0, 2.0])
         @test hessian.complete
-        @test hessian.methods == [:finite_difference_function_values]
+        @test hessian.methods == [:exact_constructed_nonlinear_ad]
         combined = NLPDiagnostics._combined_hessian_matrix(hessian)
         @test combined[1, 1] ≈ 2.0 rtol = 1.0e-6
         @test combined[2, 2] ≈ 6.0 rtol = 1.0e-6
@@ -13425,9 +13428,11 @@ end
         )
         @test flat_report.metadata[:second_order_reduced_hessian_available] == "true"
         @test length(findings(flat_report, :reduced_hessian_flat_directions)) == 1
-        @test length(findings(
+        @test isempty(findings(
             flat_report, :active_set_second_order_finite_difference_hessian,
-        )) == 1
+        ))
+        @test flat_report.metadata[:second_order_hessian_methods] ==
+              "exact_constructed_nonlinear_ad"
 
         guarded_flat_report = NLPDiagnostics.analyze_active_set_second_order(
             flat_model,

@@ -173,6 +173,7 @@ export JacobianLinearOperator
 export JacobianScaleSummary
 export HessianEntry
 export HessianEvaluation
+export HessianDensitySummary
 export NumericalEvaluation
 export evaluation_call_statistics
 export MFCQScreen
@@ -345,6 +346,8 @@ export derivative_issues
 export evaluation_point
 export evaluate_numerical
 export evaluate_lagrangian_hessian
+export hessian_density_summary
+export hessian_density_summary_data
 export evaluator_capabilities
 export expression_numerical_risks
 export fixed_operator_value

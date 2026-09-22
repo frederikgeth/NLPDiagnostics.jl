@@ -23,14 +23,14 @@ endorsement by its authors.
 | **Reduced infeasible subsystem** | A solver conflict or elastic subset that is smaller than the original scope, with its method and minimality limits retained. | The initiative cites [Python-MIP's conflict tools](https://github.com/coin-or/python-mip/blob/6044fc8f0414d71430e94b8a08573b695dc35b5a/mip/conflict.py#L15). We use “irreducible infeasible subsystem” or **IIS** only when irreducibility has been established. |
 | **Dual feasibility report** | Sign feasibility, stationarity, complementarity, and applicable objective-consistency checks, each with its coordinate and tolerance policy. | The initiative points to [HiGHS.jl issue #223](https://github.com/jump-dev/HiGHS.jl/issues/223) for checking solver-reported objective values against re-evaluation. A primal-dual gap is reported only where the formulation makes that comparison meaningful. |
 | **Convexity counterexample** | Domain-valid points that numerically disprove a convexity claim over the tested segment. | The initiative cites [CVXPY Analyzer's convexity checker](https://github.com/cvxpy/cvxpyanalyzer/blob/master/analyzer/convexity_checker.py). NLPDiagnostics currently provides local Hessian inertia; a reproducible counterexample campaign remains planned. |
-| **Hessian structure** | Declared sparsity, evaluated numerical nonzeros, density, and reformulation implications, reported separately. | [MathOptInterface issue #2527](https://github.com/jump-dev/MathOptInterface.jl/issues/2527) documents why declared nonlinear Hessian sparsity can include entries that evaluate to zero. The structural-versus-numerical density summary remains planned. |
+| **Hessian structure** | Declared or method-generated candidate sparsity, evaluated numerical nonzeros, density, and reformulation implications, reported separately. | [MathOptInterface issue #2527](https://github.com/jump-dev/MathOptInterface.jl/issues/2527) documents why declared nonlinear Hessian sparsity can include entries that evaluate to zero. `hessian_density_summary` preserves this distinction and labels dense finite-difference candidates separately. |
 | **MIP solution refiner** | Outside the current continuous NLP/OPF mission. | The initiative links a [solution-refinement presentation](https://youtu.be/rKcdF4Fgl-g?feature=shared&t=2535). We retain the idea in the roadmap so any future scope change starts from the cited prior art. |
 | **Solver trace** | Ordered solver callback or parsed-log observations with metric coordinate semantics and optional explicitly captured points. | Solver telemetry is evidence about one algorithm run. It is paired with independently evaluated model or physical residuals without assuming the numeric columns share coordinates. |
 
 ## Coverage of the JuMP initiative
 
 The current package covers 12 of the initiative's 13 idea families at least
-partially. Ten are strong parts of the implementation, two have meaningful
+partially. Eleven are strong parts of the implementation, one has meaningful
 support with a clear missing front door, and the MIP solution refiner is outside
 the present NLP/OPF scope.
 
@@ -47,7 +47,7 @@ the present NLP/OPF scope.
 | Convexity analysis | Partial | Add seeded, domain-valid counterexample campaigns; retain local Hessian screens. |
 | Reduced infeasible subsystem | Strong | Distinguish solver conflicts, elastic reductions, minimum-cardinality searches, and verified irreducibility. |
 | Dual feasibility report | Strong | Add a concise objective-value consistency and meaningful primal-dual gap front door. |
-| Hessian analysis | Partial | Add declared-versus-evaluated density and reformulation guidance. |
+| Hessian analysis | Strong | `hessian_density_summary` reports lower-triangular and symmetric structural/numerical density, tolerance, derivative provenance, duplicate combination, and coverage limits. |
 | MIP solution refiner | Outside scope | Revisit only if the package deliberately expands beyond continuous NLP/OPF diagnostics. |
 
 The detailed implementation order and acceptance conditions live in the

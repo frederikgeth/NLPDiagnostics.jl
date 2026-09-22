@@ -12,6 +12,9 @@ NLPDiagnostics.coefficient_profile(model::JuMP.Model; kwargs...) =
 NLPDiagnostics.model_summary(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.model_summary(JuMP.backend(model); kwargs...)
 
+NLPDiagnostics.hessian_density_summary(model::JuMP.Model, point; kwargs...) =
+    NLPDiagnostics.hessian_density_summary(JuMP.backend(model), point; kwargs...)
+
 NLPDiagnostics.analyze(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.analyze(JuMP.backend(model); kwargs...)
 

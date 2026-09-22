@@ -814,6 +814,45 @@ struct HessianEvaluation{T<:AbstractFloat}
 end
 
 """
+Structural and point-local numerical density of a selected Lagrangian Hessian.
+
+Structural entries are unique lower-triangular positions exposed by the
+derivative source. Numerical nonzeros are obtained after additively combining
+duplicate and transposed entries, using the recorded absolute-plus-relative
+threshold. The symmetric counts expand off-diagonal positions into both halves
+of the full matrix.
+"""
+struct HessianDensitySummary{T<:AbstractFloat}
+    point::EvaluationPoint{T}
+    objective_weight::T
+    constraint_multipliers::Vector{T}
+    variable_count::Int
+    lower_triangle_slot_count::Int
+    raw_entry_count::Int
+    structural_entry_count::Int
+    numerical_nonzero_count::Int
+    numerical_zero_count::Int
+    nonfinite_count::Int
+    duplicate_entry_count::Int
+    structural_symmetric_entry_count::Int
+    numerical_symmetric_nonzero_count::Int
+    structural_lower_triangle_density::Union{Nothing,T}
+    numerical_lower_triangle_density::Union{Nothing,T}
+    structural_symmetric_density::Union{Nothing,T}
+    numerical_symmetric_density::Union{Nothing,T}
+    numerical_fraction_of_structure::Union{Nothing,T}
+    maximum_absolute_value::Union{Nothing,T}
+    absolute_tolerance::T
+    relative_tolerance::T
+    numerical_zero_threshold::T
+    structure_provenance::Symbol
+    methods::Vector{Symbol}
+    complete::Bool
+    failures::Vector{EvaluationFailure}
+    observations::Vector{String}
+end
+
+"""
 Spectrum and inertia of a Hessian projected into a selected Jacobian nullspace.
 
 The active rows are explicit because activity cannot be inferred reliably from

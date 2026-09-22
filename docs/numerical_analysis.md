@@ -292,9 +292,17 @@ the existing explicitly labeled finite-difference fallback instead.
 
 `evaluate_lagrangian_hessian` evaluates the Hessian of an explicit weighted
 objective and constraint combination. `NLPBlock` and nonlinear-oracle `:Hess`
-callbacks are exact when available; ordinary MOI functions use a clearly
-labeled, guarded finite-difference fallback. Raw Hessian entries retain MOI's
-additive duplicate semantics.
+callbacks are exact when available. Supported ordinary MOI functions use an
+ephemeral public `MOI.Nonlinear.Evaluator` and sparse reverse-mode AD; a clearly
+labeled, guarded finite-difference path remains the fallback. Raw Hessian
+entries retain MOI's additive duplicate semantics.
+
+`hessian_density_summary` separates the exposed lower-triangular derivative
+structure from entries that remain numerically nonzero after duplicate
+combination at one labelled point and tolerance. It also reports full symmetric
+density, derivative provenance, incomplete coverage, and non-finite entries.
+Point-local zeros are observations, not proof that a structural entry can be
+removed globally.
 
 `reduced_hessian_analysis` projects this Hessian onto the nullspace of caller-
 supplied `active_rows`. It deliberately does not infer activity or multipliers

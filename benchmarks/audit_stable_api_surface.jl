@@ -62,6 +62,13 @@ try
         MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, variable)], 0.0),
         MOI.EqualTo(0.0),
     )
+    objective = MOI.ScalarQuadraticFunction(
+        [MOI.ScalarQuadraticTerm(2.0, variable, variable)],
+        MOI.ScalarAffineTerm{Float64}[],
+        0.0,
+    )
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(model, MOI.ObjectiveFunction{typeof(objective)}(), objective)
     point = NLPDiagnostics.Stable.EvaluationPoint(
         [variable], [0.0]; label = "stable-api-audit",
     )
@@ -75,6 +82,9 @@ try
     report_data = NLPDiagnostics.Stable.report_data(report)
     summary = NLPDiagnostics.Stable.model_summary(model)
     summary_data = NLPDiagnostics.Stable.model_summary_data(summary)
+    hessian_density = NLPDiagnostics.Stable.hessian_density_summary(model, point)
+    hessian_density_data =
+        NLPDiagnostics.Stable.hessian_density_summary_data(hessian_density)
     smoke["model_variable_count"] = MOI.get(model, MOI.NumberOfVariables())
     smoke["snapshot_variable_count"] = length(snapshot.variables)
     smoke["report_finding_count"] = length(report)
@@ -82,6 +92,9 @@ try
     smoke["summary_variable_count"] = summary.variable_count
     smoke["summary_data_has_coefficient_profile"] =
         haskey(summary_data, "coefficient_profile")
+    smoke["hessian_structural_entry_count"] =
+        hessian_density.structural_entry_count
+    smoke["hessian_data_has_point"] = haskey(hessian_density_data, "point")
 catch error
     smoke["status"] = "failed"
     smoke["error_type"] = string(typeof(error))
