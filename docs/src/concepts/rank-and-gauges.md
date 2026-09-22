@@ -16,6 +16,13 @@ and scaling. A small singular value may reflect a true invariant, a derivative
 that vanishes only at the chosen point, poor coordinate scaling, or numerical
 error.
 
+When the **rows** are dependent, `dependent_row_localization` can reduce a
+bounded evaluated row scope to one set in which removing any row restores
+independence under a fixed threshold. The [dependent-row
+tutorial](../tutorials/dependent-rows.md) shows how to inspect the source
+equations. Select equality and active rows explicitly when studying constraint
+qualification; the default all-row scope has no activity interpretation.
+
 For example, the derivative of ``g(x)=x^2-1`` is zero at ``x=0``, even though the
 equation has isolated feasible points at ``x=\pm1``. One-point rank loss is not a
 global degree of freedom.

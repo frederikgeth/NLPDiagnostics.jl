@@ -1,13 +1,22 @@
 {
-  "advanced_only": [],
+  "advanced_only": [
+    "DependentRowLocalization",
+    "dependent_row_localization",
+    "dependent_row_localization_data",
+    "dependent_row_localization_report"
+  ],
   "alias_mismatches": [],
-  "declared_export_count": 14,
+  "declared_export_count": 18,
   "declared_exports": [
+    "DependentRowLocalization",
     "ProfileAggregate",
     "ProfileCase",
     "ProfileResult",
     "RankPolicy",
     "UnavailableReason",
+    "dependent_row_localization",
+    "dependent_row_localization_data",
+    "dependent_row_localization_report",
     "jacobian_rank_estimate",
     "profile_aggregate_data",
     "profile_case",
@@ -19,8 +28,8 @@
     "unavailable_reason_data"
   ],
   "environment": {
-    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/work/benchmark-environment/Project.toml",
-    "git_revision": "4588dabd789c9aca7d1c9a0efc1b2dbc9a28832e",
+    "active_project": "/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/Project.toml",
+    "git_revision": "e4fcf9c12929ec35f9f55569d78cbbb3e343f81a",
     "git_worktree_dirty": true,
     "julia_version": "1.12.6"
   },
@@ -49,13 +58,17 @@
     "unavailable_reason",
     "unavailable_reason_data"
   ],
-  "runtime_export_count": 14,
+  "runtime_export_count": 18,
   "runtime_exports": [
+    "DependentRowLocalization",
     "ProfileAggregate",
     "ProfileCase",
     "ProfileResult",
     "RankPolicy",
     "UnavailableReason",
+    "dependent_row_localization",
+    "dependent_row_localization_data",
+    "dependent_row_localization_report",
     "jacobian_rank_estimate",
     "profile_aggregate_data",
     "profile_case",

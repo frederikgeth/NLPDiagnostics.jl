@@ -16,6 +16,7 @@ const CURATED = [
     ("proportional_affine_equality_constraints", "model-wide", "Supported affine equalities encode the same equation up to scaling.", "Decide from formulation intent whether the redundancy is expected."),
     ("unmatched_structural_variables", "structural pattern", "Some eligible free variables are unmatched in a maximum equality matching.", "Inspect the corresponding Dulmage–Mendelsohn region."),
     ("dense_sparse_qr_rank_agreement", "one point and policy", "Guarded dense and sparse rank backends agree under the recorded policy.", "Retain the tolerance and scaling; agreement does not make rank global."),
+    ("numerical_irreducible_dependent_rows", "one point and policy", "Every one-row deletion from the localized Jacobian row set is independent under a fixed threshold.", "Inspect source equations and repeat at another justified point and tolerance."),
     ("solver_result_point_unavailable", "solver result", "The requested result does not expose a complete real primal vector.", "Inspect result count and primal status; do not fill coordinates silently."),
 ]
 
@@ -41,7 +42,7 @@ function area(path::String)
         "analysis/numerical.jl", "analysis/activity.jl", "analysis/degeneracy.jl",
         "analysis/crosscheck.jl", "analysis/scaling.jl", "numerics/degeneracy.jl",
         "numerics/activity.jl", "numerics/hessian.jl", "numerics/duals.jl",
-        "numerics/objective_consistency.jl",
+        "numerics/objective_consistency.jl", "numerics/dependent_rows.jl",
     )) && return "Numerical geometry"
     endswith(path, "analysis/initialization.jl") && return "Initialization"
     endswith(path, "analysis/postmortem.jl") && return "Solver results and traces"

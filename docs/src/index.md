@@ -20,6 +20,7 @@ formulations, initialization, scaling, and solver behaviour.
 | “Does the reported objective match the returned point, and is a gap meaningful?” | [Objective consistency and applicable gaps](tutorials/objective-consistency.md) |
 | “Did the model fail, or is my starting point invalid?” | [Model failure or bad start?](tutorials/initialization.md) |
 | “Is this Jacobian rank loss point- or tolerance-specific?” | [Numerical rank at a point](tutorials/numerical-rank.md) |
+| “Which equations create the local row dependency?” | [Locate dependent constraint rows](tutorials/dependent-rows.md) |
 | “Did a scaling change alter the solver trajectory?” | [Controlled scaling and solver traces](tutorials/controlled-scaling-trace.md) |
 | “Does this null direction represent an OPF gauge?” | [From NLP evidence to OPF hypotheses](tutorials/opf-hypotheses.md) |
 | “Do two OPF formulations agree physically?” | [Compare OPF formulations](tutorials/controlled-opf-comparison.md) |

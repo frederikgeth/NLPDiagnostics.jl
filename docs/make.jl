@@ -44,6 +44,7 @@ makedocs(
             "Objective consistency and applicable gaps" => "tutorials/objective-consistency.md",
             "Model failure or bad start?" => "tutorials/initialization.md",
             "Numerical rank at a point" => "tutorials/numerical-rank.md",
+            "Locate dependent constraint rows" => "tutorials/dependent-rows.md",
             "Controlled scaling and solver traces" => "tutorials/controlled-scaling-trace.md",
             "From NLP evidence to OPF hypotheses" => "tutorials/opf-hypotheses.md",
             "Compare OPF formulations" => "tutorials/controlled-opf-comparison.md",

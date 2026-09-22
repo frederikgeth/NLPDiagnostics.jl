@@ -14,6 +14,7 @@ const ProfileCase = NLPDiagnostics.ProfileCase
 const ProfileAggregate = NLPDiagnostics.ProfileAggregate
 const ProfileResult = NLPDiagnostics.ProfileResult
 const RankPolicy = NLPDiagnostics.RankPolicy
+const DependentRowLocalization = NLPDiagnostics.DependentRowLocalization
 const UnavailableReason = NLPDiagnostics.UnavailableReason
 
 const profile_case = NLPDiagnostics.profile_case
@@ -22,6 +23,9 @@ const profile_cases_repeated = NLPDiagnostics.profile_cases_repeated
 const profile_result_data = NLPDiagnostics.profile_result_data
 const profile_aggregate_data = NLPDiagnostics.profile_aggregate_data
 const jacobian_rank_estimate = NLPDiagnostics.jacobian_rank_estimate
+const dependent_row_localization = NLPDiagnostics.dependent_row_localization
+const dependent_row_localization_data = NLPDiagnostics.dependent_row_localization_data
+const dependent_row_localization_report = NLPDiagnostics.dependent_row_localization_report
 const sparse_qr_rank_estimate = NLPDiagnostics.sparse_qr_rank_estimate
 const unavailable_reason = NLPDiagnostics.unavailable_reason
 const unavailable_reason_data = NLPDiagnostics.unavailable_reason_data
@@ -30,6 +34,7 @@ export ProfileCase
 export ProfileAggregate
 export ProfileResult
 export RankPolicy
+export DependentRowLocalization
 export UnavailableReason
 export profile_case
 export profile_case_repeated
@@ -37,6 +42,9 @@ export profile_cases_repeated
 export profile_result_data
 export profile_aggregate_data
 export jacobian_rank_estimate
+export dependent_row_localization
+export dependent_row_localization_data
+export dependent_row_localization_report
 export sparse_qr_rank_estimate
 export unavailable_reason
 export unavailable_reason_data

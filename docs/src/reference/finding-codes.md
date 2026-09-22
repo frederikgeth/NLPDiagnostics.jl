@@ -19,6 +19,7 @@ confidence, affected entities, evidence, point provenance, and report metadata.
 | `proportional_affine_equality_constraints` | model-wide | Supported affine equalities encode the same equation up to scaling. | Decide from formulation intent whether the redundancy is expected. |
 | `unmatched_structural_variables` | structural pattern | Some eligible free variables are unmatched in a maximum equality matching. | Inspect the corresponding Dulmage–Mendelsohn region. |
 | `dense_sparse_qr_rank_agreement` | one point and policy | Guarded dense and sparse rank backends agree under the recorded policy. | Retain the tolerance and scaling; agreement does not make rank global. |
+| `numerical_irreducible_dependent_rows` | one point and policy | Every one-row deletion from the localized Jacobian row set is independent under a fixed threshold. | Inspect source equations and repeat at another justified point and tolerance. |
 | `solver_result_point_unavailable` | solver result | The requested result does not expose a complete real primal vector. | Inspect result count and primal status; do not fill coordinates silently. |
 
 ## Statically declared inventory
@@ -187,6 +188,7 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `degrees_of_freedom_rank_inconsistency` — `src/analysis/degeneracy.jl`
 - `degrees_of_freedom_summary` — `src/analysis/degeneracy.jl`
 - `degrees_of_freedom_unavailable` — `src/analysis/degeneracy.jl`
+- `dependent_row_localization_unavailable` — `src/numerics/dependent_rows.jl`
 - `derivative_crosscheck_scale_sensitivity` — `src/analysis/crosscheck.jl`
 - `derivative_crosscheck_scale_sweep_consistent` — `src/analysis/crosscheck.jl`
 - `derivative_crosscheck_scale_sweep_unavailable` — `src/analysis/crosscheck.jl`
@@ -262,6 +264,7 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `nonsmoothness_persistence_unavailable` — `src/analysis/crosscheck.jl`
 - `nonsmoothness_screen_inconclusive` — `src/analysis/crosscheck.jl`
 - `nonunique_active_multipliers` — `src/analysis/activity.jl`
+- `numerical_irreducible_dependent_rows` — `src/numerics/dependent_rows.jl`
 - `numerical_jacobian_rank_deficiency` — `src/analysis/numerical.jl`
 - `objective_gradient_directional_crosscheck_consistent` — `src/analysis/crosscheck.jl`
 - `objective_gradient_directional_crosscheck_domain_limited` — `src/analysis/crosscheck.jl`
@@ -499,4 +502,4 @@ outside this lexical inventory. The documentation build fails when this file is 
 - `solver_conflict_not_found` — `src/NLPDiagnostics.jl`
 - `solver_conflict_unavailable` — `src/NLPDiagnostics.jl`
 
-Inventory count: **453** literal finding codes.
+Inventory count: **455** literal finding codes.
