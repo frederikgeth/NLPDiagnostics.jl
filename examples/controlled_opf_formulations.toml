@@ -1,0 +1,72 @@
+schema_version = "nlpdiagnostics-experiment-record-v1"
+experiment_id = "tutorial-controlled-opf-formulations"
+question = "Do polar and rectangular formulations of the declared two-bus balance return the same physical voltage under matched data, objective, bounds, solver, and tolerances?"
+status = "teaching_example"
+
+[source]
+model_path = "examples/controlled_opf_formulations.jl"
+model_sha256 = "computed by the investigator when freezing a derived experiment"
+data_paths = []
+data_sha256 = []
+license_or_permission_reference = "repository license"
+transformations = ["polar voltage mapped to rectangular physical coordinates"]
+
+[environment]
+julia_version = "record at execution"
+nlpdiagnostics_revision = "record at execution"
+project_path = "docs/Project.toml"
+manifest_sha256 = "record at execution"
+optional_extensions = ["JuMP", "Ipopt"]
+
+[model]
+interface = "JuMP"
+formulation = "paired polar and rectangular two-bus AC balance"
+objective = "squared distance from the 1+0im reference voltage"
+coordinate_convention = "polar (vm, va) mapped to rectangular (vr, vi)"
+unit_convention = "dimensionless pedagogical per-unit quantities"
+reference_policy = "bus 1 fixed at 1+0im by construction"
+source_to_model_mapping = "declared directly in the example script"
+
+[point]
+label = "paired Ipopt solver results"
+kind = "SolverResultPoint"
+source = "MOI.VariablePrimal"
+complete = true
+fingerprint = "generated separately for each formulation"
+construction_policy = "Ipopt result under the declared matched policy"
+
+[solver]
+name = "Ipopt"
+version = "record at execution"
+linear_solver = "record at execution"
+options = { print_level = 0, sb = "yes" }
+time_limit_seconds = 0.0
+
+[diagnostic]
+command = "run_controlled_opf_comparison()"
+policies = ["default analyze_solver_result policy"]
+tolerances = ["physical comparison 1e-8"]
+work_limits = []
+
+[comparison]
+baseline_id = "polar"
+intervention = "represent the same voltage and balance equations in rectangular coordinates"
+prediction = "both locally solved results map to the same physical voltage and satisfy the same physical balances"
+held_constant = ["line susceptance", "load", "physical voltage bounds", "physical initialization", "objective", "solver family"]
+negative_controls = ["do not compare raw coordinate vectors directly"]
+
+[results]
+termination_status = "asserted locally solved or optimal for both formulations"
+primal_status = "asserted feasible point for both formulations"
+report_path = ""
+report_sha256 = ""
+raw_artifact_paths = []
+unavailable_evidence = ["global optimality", "transfer to a network data model"]
+failures = []
+exclusions = ["no equipment, contingency, or operator semantics"]
+
+[interpretation]
+observation = "The two result points agree after mapping into common rectangular voltage coordinates."
+supported_claim = "The paired implementations agree for this declared fixture and policy."
+unsupported_claims = ["all OPF formulations are equivalent", "Ipopt will converge from arbitrary starts", "the fixture represents an operational network"]
+next_discriminating_measurement = "Repeat with an independently justified start or a source-backed network model while preserving the physical-coordinate comparison."

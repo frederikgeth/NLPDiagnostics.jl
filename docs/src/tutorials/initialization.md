@@ -3,6 +3,14 @@
 An NLP can be mathematically meaningful while a supplied starting point makes an
 expression impossible to evaluate. This tutorial separates those claims.
 
+!!! note "Learning goals"
+    After this tutorial, you can distinguish a domain-invalid start from model
+    infeasibility and compare a start-only intervention with a model-domain
+    intervention.
+
+    **Prerequisites:** basic JuMP nonlinear constraints. **Time:** about 10
+    minutes. **Artifact:** reports for an invalid, valid, and bounded start.
+
 ## Question and prediction
 
 Consider ``\log(x) \ge 0`` with an initial value ``x=-1``. The logarithm is
@@ -75,3 +83,14 @@ Try a start of `x = 0.5`. The expression is finite, but does the constraint hold
 Compare the finding with the `x = -1` case. Explain why “finite evaluation,”
 “constraint satisfaction at this point,” and “model feasibility” are three
 different claims.
+
+!!! tip "Hint"
+    Evaluate ``\log(0.5)`` and compare it with the lower bound zero in the
+    constraint. Keep the distinction between whether a value exists and whether
+    it satisfies the inequality.
+
+!!! info "Expected observations"
+    The logarithm is finite at ``x=0.5``, so the domain and non-finite findings
+    disappear, but the point violates ``\log(x)\ge0``. Other values, including
+    ``x=1`` and ``x=2``, show why that pointwise violation is not an infeasibility
+    proof.

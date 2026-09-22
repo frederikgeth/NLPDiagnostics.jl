@@ -3,6 +3,13 @@
 This tutorial investigates a tiny inconsistent JuMP model. The aim is to learn
 the workflow: predict, observe, interpret, intervene, and compare.
 
+!!! note "Learning goals"
+    After this tutorial, you can identify a proof-backed contradiction, inspect
+    its evidence basis, and test a one-change repair without relying on a solver.
+
+    **Prerequisites:** basic JuMP variables and constraints. **Time:** about 10
+    minutes. **Artifact:** before-and-after diagnostic reports.
+
 ## Question and prediction
 
 Can one scalar variable satisfy both ``x \ge 10`` and ``x \le 5``? Before
@@ -76,3 +83,12 @@ Replace the upper bound with `x <= 10`. Predict the outcome before running the
 analysis. Is the variable infeasible, merely bounded, or fixed? Inspect the
 finding basis and affected entities, then explain what the result does and does
 not establish about a larger model containing this variable.
+
+!!! tip "Hint"
+    An interval with identical lower and upper endpoints is nonempty. Look for
+    a finding that distinguishes a fixed variable from an inconsistent one.
+
+!!! info "Expected observations"
+    The two inequalities fix ``x`` at 10, so the contradiction disappears. The
+    result establishes the implied value in this represented scalar block; it
+    does not establish feasibility of unrelated constraints in a larger model.

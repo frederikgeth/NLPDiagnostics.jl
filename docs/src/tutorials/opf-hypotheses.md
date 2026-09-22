@@ -4,6 +4,14 @@ Power-system models add physical meaning to generic NLP structure. This tutorial
 uses a simplified angle block to show how to move from mathematical evidence to
 an OPF hypothesis without overstating the result.
 
+!!! note "Learning goals"
+    After this tutorial, you can separate structural underdetermination from an
+    OPF gauge interpretation, test a reference-angle hypothesis, and recognize
+    redundant affine balance equations.
+
+    **Prerequisites:** basic OPF angle notation. **Time:** about 15 minutes.
+    **Artifact:** unreferenced, referenced, and redundant angle-block reports.
+
 ## One flow equation, no angle reference
 
 Let a linearized branch relation impose ``\theta_1-\theta_2=0.5``. With two
@@ -82,3 +90,19 @@ The current end-to-end source/solver workflow is experimental and documented in
 the repository's [Power diagnostics v2 record](https://github.com/frederikgeth/NLPDiagnostics.jl/blob/main/docs/power_diagnostics_v2.md).
 Its frozen synthetic evaluations are development evidence, not a claim of
 operator usefulness or general OPF coverage.
+
+## Exercise
+
+Create two disconnected angle pairs, one equation per pair, and fix a reference
+in only the first pair. Predict the structural finding before running the
+analysis. Then add one reference in the second pair and compare the reports.
+
+!!! tip "Hint"
+    Use variables ``theta[1:4]`` with relations between 1–2 and 3–4. Treat each
+    pair as a separate island and change only the reference policy.
+
+!!! info "Expected observations"
+    One reference removes the common shift in its own pair but leaves a free
+    shift in the other. A reference in each pair removes both structural null
+    directions. Calling the pairs electrical islands still depends on the
+    source-to-model mapping, not the affine equations alone.

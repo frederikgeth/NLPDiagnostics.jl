@@ -4,6 +4,15 @@ This tutorial follows one small AC optimal-power-flow model from source bytes to
 a diagnostic reevaluation at an Ipopt result. It demonstrates a research
 record, not a claim that one case validates the workflow for other networks.
 
+!!! note "Learning goals"
+    After this tutorial, you can preserve OPF source provenance, distinguish an
+    invalid constructed start from solver-result evidence, and bound the claim
+    supported by a successful diagnostic reevaluation.
+
+    **Prerequisites:** JuMP, solver statuses, and basic AC OPF concepts. **Time:**
+    about 25 minutes. **Artifact:** a hashed source, start report, solver policy,
+    and returned-point report.
+
 The checked-in MATPOWER fixture comes from the PowerModels test corpus and is
 redistributed under the license beside it. It deliberately exercises parser
 normalization, including reference-bus handling and an HVDC line.
@@ -170,3 +179,14 @@ Run the case with a second independently justified start. Freeze its constructio
 before solving. Compare start feasibility, termination, returned-point findings,
 objective, and solver work. Which observations are directly comparable, and
 which require a mapping into common physical coordinates?
+
+!!! tip "Hint"
+    Record both starts before either solve. Solver status and work are directly
+    comparable only under the same solver policy; formulation changes require a
+    declared coordinate map for state comparisons.
+
+!!! info "Expected observations"
+    Start feasibility can differ while both runs still reach accepted result
+    points. Similar objectives do not imply identical states or global
+    optimality. If the starts lead to different results, preserve both records
+    and design a further controlled comparison instead of selecting one silently.

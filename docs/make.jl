@@ -39,7 +39,9 @@ makedocs(
         "Tutorials" => [
             "Your first diagnosis" => "tutorials/first-diagnosis.md",
             "Model failure or bad start?" => "tutorials/initialization.md",
+            "Numerical rank at a point" => "tutorials/numerical-rank.md",
             "From NLP evidence to OPF hypotheses" => "tutorials/opf-hypotheses.md",
+            "Compare OPF formulations" => "tutorials/controlled-opf-comparison.md",
             "A reproducible three-bus OPF investigation" => "tutorials/three-bus-opf.md",
         ],
         "Concepts" => [

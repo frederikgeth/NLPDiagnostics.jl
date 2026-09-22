@@ -26,6 +26,8 @@ stable_exports
 
 ```@docs
 NLPDiagnostics.analyze
+NLPDiagnostics.EvaluationPoint
+NLPDiagnostics.EvaluationPointProvenance
 NLPDiagnostics.evaluation_point
 NLPDiagnostics.evaluate_numerical
 ```
@@ -51,3 +53,7 @@ question. Record nondefault policies and tolerances with experimental results.
 rank-policy, and unavailable-capability experiments. It carries no Stable-tier
 compatibility guarantee. The broader root namespace contains legacy and
 domain-extension exports under active ownership review.
+
+```@docs
+NLPDiagnostics.jacobian_rank_estimate
+```

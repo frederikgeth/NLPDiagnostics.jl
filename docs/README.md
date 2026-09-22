@@ -19,6 +19,16 @@ block and fails on example, cross-reference, or selected API-doc errors. The
 generated `docs/Manifest.toml` and `docs/build/` directory are ignored. CI
 resolves the documentation environment from `docs/Project.toml`.
 
+Longer tutorials may have a matching standalone script in `examples/`. Run one
+with the same resolved environment, for example:
+
+```sh
+julia --startup-file=no --project=docs examples/numerical_rank_at_a_point.jl
+```
+
+The tutorial should include the script and assert the same central claims so
+the two learning paths remain synchronized.
+
 The finding-code page is generated and checked during every build. After adding,
 removing, or renaming a literal finding code, update it with:
 

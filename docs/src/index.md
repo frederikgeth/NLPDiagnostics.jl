@@ -15,7 +15,9 @@ formulations, initialization, scaling, and solver behaviour.
 |:--|:--|
 | “Why is this small model inconsistent?” | [Your first diagnosis](tutorials/first-diagnosis.md) |
 | “Did the model fail, or is my starting point invalid?” | [Model failure or bad start?](tutorials/initialization.md) |
+| “Is this Jacobian rank loss point- or tolerance-specific?” | [Numerical rank at a point](tutorials/numerical-rank.md) |
 | “Does this null direction represent an OPF gauge?” | [From NLP evidence to OPF hypotheses](tutorials/opf-hypotheses.md) |
+| “Do two OPF formulations agree physically?” | [Compare OPF formulations](tutorials/controlled-opf-comparison.md) |
 | “How do I investigate a complete OPF run?” | [Three-bus OPF investigation](tutorials/three-bus-opf.md) |
 | “I have a solver symptom; what should I inspect?” | [Diagnostic playbook](how-to/diagnostic-playbook.md) |
 | “What does this finding actually establish?” | [Evidence and claims](concepts/evidence.md) |
