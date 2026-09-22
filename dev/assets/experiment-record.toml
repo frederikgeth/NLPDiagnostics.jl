@@ -1,0 +1,72 @@
+schema_version = "nlpdiagnostics-experiment-record-v1"
+experiment_id = "replace-with-stable-id"
+question = "State an observable question without assuming its cause."
+status = "planned"
+
+[source]
+model_path = ""
+model_sha256 = ""
+data_paths = []
+data_sha256 = []
+license_or_permission_reference = ""
+transformations = []
+
+[environment]
+julia_version = ""
+nlpdiagnostics_revision = ""
+project_path = ""
+manifest_sha256 = ""
+optional_extensions = []
+
+[model]
+interface = "JuMP or MOI"
+formulation = ""
+objective = ""
+coordinate_convention = ""
+unit_convention = ""
+reference_policy = ""
+source_to_model_mapping = ""
+
+[point]
+label = ""
+kind = ""
+source = ""
+complete = false
+fingerprint = ""
+construction_policy = ""
+
+[solver]
+name = ""
+version = ""
+linear_solver = ""
+options = {}
+time_limit_seconds = 0.0
+
+[diagnostic]
+command = ""
+policies = []
+tolerances = []
+work_limits = []
+
+[comparison]
+baseline_id = ""
+intervention = ""
+prediction = ""
+held_constant = []
+negative_controls = []
+
+[results]
+termination_status = "not_run"
+primal_status = "not_run"
+report_path = ""
+report_sha256 = ""
+raw_artifact_paths = []
+unavailable_evidence = []
+failures = []
+exclusions = []
+
+[interpretation]
+observation = ""
+supported_claim = ""
+unsupported_claims = []
+next_discriminating_measurement = ""
