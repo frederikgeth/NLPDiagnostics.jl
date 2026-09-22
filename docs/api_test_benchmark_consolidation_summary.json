@@ -588,9 +588,9 @@
   },
   "benchmark_schema_inventory": {
     "benchmark_scripts_with_schema_version_count": 152,
-    "json_file_count": 160,
-    "json_schema_file_count": 160,
-    "json_without_schema_count": 0,
+    "json_file_count": 162,
+    "json_schema_file_count": 161,
+    "json_without_schema_count": 1,
     "schema_errors": []
   },
   "bmopf_api_contract": {
@@ -1016,7 +1016,7 @@
       "api/advanced.jl",
       "api/stable.jl"
     ],
-    "test_file_count": 46,
+    "test_file_count": 47,
     "test_include_count": 27,
     "test_includes": [
       "rank_calibration.jl",
