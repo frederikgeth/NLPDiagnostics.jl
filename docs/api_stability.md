@@ -12,8 +12,9 @@ should use the [version 2 entry point](power_diagnostics_v2.md).
 ## `NLPDiagnostics.Stable`
 
 New application code should target the deliberately small `Stable` facade. Its
-current 16 exports cover model snapshots, numerical evaluations, solver-neutral
-analysis, findings, evidence, and renderer-neutral report serialization. The
+current 24 exports cover model snapshots, compact model/coefficient summaries,
+numerical evaluations, solver-neutral analysis, findings, evidence, and
+renderer-neutral serialization. The
 facade is additive-only during the current release cycle: new fields and typed
 report-boundary records may be added, but signature or semantic changes require
 an explicit release decision and updated contract tests.

@@ -1,7 +1,7 @@
 # Stable API reference
 
 New application code should prefer the deliberately small
-`NLPDiagnostics.Stable` facade. Its 16 exports cover the solver-neutral path
+`NLPDiagnostics.Stable` facade. Its 24 exports cover the solver-neutral path
 from a represented model or explicit numerical point to typed findings and
 renderer-neutral data. The facade is additive-only during the current release
 cycle; the exact policy and executable surface audit are recorded in the
@@ -21,6 +21,9 @@ expected = Set((
     :EvaluationPointKind,
     :EvaluationPointProvenance,
     :NumericalEvaluation,
+    :CoefficientRange,
+    :CoefficientProfile,
+    :ModelSummary,
     :snapshot,
     :evaluate_numerical,
     :analyze,
@@ -28,6 +31,11 @@ expected = Set((
     :finding_data,
     :evidence_data,
     :report_data,
+    :coefficient_range_data,
+    :coefficient_profile,
+    :coefficient_profile_data,
+    :model_summary,
+    :model_summary_data,
 ))
 @assert setdiff(Set(names(NLPDiagnostics.Stable)), Set((:Stable,))) == expected
 length(expected)
@@ -132,6 +140,9 @@ research-facing API.
 | `EvaluationPointKind` | Typed origin category for a numerical point. |
 | `EvaluationPointProvenance` | Origin, completeness, and metadata for a point. |
 | `NumericalEvaluation` | Values and derivatives observed at one exact point. |
+| `CoefficientRange` | Magnitude counts and span for one explicitly defined static coefficient family. |
+| `CoefficientProfile` | Static algebraic ranges, linear-matrix density, coverage limits, and observations. |
+| `ModelSummary` | Compact model inventory, fingerprint provenance, bridge observability, and coefficient profile. |
 
 ```@docs
 NLPDiagnostics.ModelSnapshot
@@ -143,6 +154,9 @@ NLPDiagnostics.EvaluationPoint
 NLPDiagnostics.EvaluationPointKind
 NLPDiagnostics.EvaluationPointProvenance
 NLPDiagnostics.NumericalEvaluation
+NLPDiagnostics.CoefficientRange
+NLPDiagnostics.CoefficientProfile
+NLPDiagnostics.ModelSummary
 ```
 
 ## Model ingestion and analysis
@@ -151,6 +165,8 @@ NLPDiagnostics.NumericalEvaluation
 NLPDiagnostics.snapshot
 NLPDiagnostics.evaluate_numerical
 NLPDiagnostics.analyze
+NLPDiagnostics.coefficient_profile
+NLPDiagnostics.model_summary
 ```
 
 `snapshot` records public represented data and opaque-source markers. It does
@@ -165,9 +181,12 @@ NLPDiagnostics.findings
 NLPDiagnostics.finding_data
 NLPDiagnostics.evidence_data
 NLPDiagnostics.report_data
+NLPDiagnostics.coefficient_range_data
+NLPDiagnostics.coefficient_profile_data
+NLPDiagnostics.model_summary_data
 ```
 
-The three `*_data` functions return dictionaries and arrays containing plain
+The `*_data` functions return dictionaries and arrays containing plain
 renderer-neutral values. They are the supported boundary for JSON, experiment
 artifacts, web views, or downstream tables. The typed objects remain the better
 boundary for analysis code because their classification axes cannot be confused

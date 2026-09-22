@@ -17,6 +17,7 @@ include("numerics/types.jl")
 include("analysis/policies.jl")
 include("numerics/evaluator.jl")
 include("numerics/fingerprints.jl")
+include("analysis/model_summary.jl")
 include("numerics/degeneracy.jl")
 include("numerics/hessian.jl")
 include("numerics/activity.jl")
@@ -111,6 +112,14 @@ export UserPoint, InitializationPoint, CompletedInitializationPoint
 export SolverIteratePoint, SolverResultPoint, PerturbedPoint, SyntheticSmokePoint
 export TransportedPoint
 export model_fingerprint
+export CoefficientRange
+export CoefficientProfile
+export ModelSummary
+export coefficient_range_data
+export coefficient_profile
+export coefficient_profile_data
+export model_summary
+export model_summary_data
 export evaluation_point_fingerprint
 export evaluation_source_fingerprint
 export analyze_jacobian_directional_crosscheck

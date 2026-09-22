@@ -73,10 +73,15 @@ try
         rank_max_dense_entries = 100,
     )
     report_data = NLPDiagnostics.Stable.report_data(report)
+    summary = NLPDiagnostics.Stable.model_summary(model)
+    summary_data = NLPDiagnostics.Stable.model_summary_data(summary)
     smoke["model_variable_count"] = MOI.get(model, MOI.NumberOfVariables())
     smoke["snapshot_variable_count"] = length(snapshot.variables)
     smoke["report_finding_count"] = length(report)
     smoke["report_data_has_findings"] = haskey(report_data, "findings")
+    smoke["summary_variable_count"] = summary.variable_count
+    smoke["summary_data_has_coefficient_profile"] =
+        haskey(summary_data, "coefficient_profile")
 catch error
     smoke["status"] = "failed"
     smoke["error_type"] = string(typeof(error))

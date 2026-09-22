@@ -15,7 +15,7 @@ endorsement by its authors.
 
 | Term | Meaning in NLPDiagnostics | Prior art and relationship |
 |:--|:--|:--|
-| **Summary statistics** | Counts, represented function/set types, provenance, and a deterministic public-model fingerprint. | The [JuMP initiative](https://github.com/jump-dev/JuMP.jl/issues/3664) proposes these as the first model sanity check. A compact user-facing summary remains planned. |
+| **Summary statistics** | Counts, represented function/set types, provenance, and a deterministic public-model fingerprint. | The [JuMP initiative](https://github.com/jump-dev/JuMP.jl/issues/3664) proposes these as the first model sanity check. `model_summary` provides the compact read-only front door. |
 | **Coefficient analysis** | Static coefficient ranges and density when those quantities exist; **Jacobian scaling** for derivatives evaluated at a named point. | The initiative points to [SDDP.jl's numerical-stability report](https://github.com/odow/SDDP.jl/blob/9e88c6ba2a7dacc0f842b9be3f8073acfd55073e/src/print.jl#L191-L384), which reports matrix, objective, bound, and right-hand-side ranges. We keep those static ranges distinct from point-local nonlinear derivative scales. |
 | **Initial-point analysis** | Completeness, bound feasibility, domain safety, finite values, and derivative availability at an explicitly labelled point. | [DegeneracyHunter.jl](https://github.com/adowling2/DegeneracyHunter.jl) uses “initial point analysis” for uninitialized variables, bound violations, and infeasible equations. NLPDiagnostics adds typed point provenance and explicit claim boundaries. |
 | **Degeneracy** | Local active-set or equality-Jacobian dependence under a recorded point and tolerance policy. | [DegeneracyHunter.jl](https://github.com/adowling2/DegeneracyHunter.jl) introduced an algorithm for finding **irreducible degenerate sets (IDS)**. We reserve “IDS” for a localized set that actually satisfies that algorithmic claim; a nullspace or dependent partition alone is not called an IDS. |
@@ -30,14 +30,14 @@ endorsement by its authors.
 ## Coverage of the JuMP initiative
 
 The current package covers 12 of the initiative's 13 idea families at least
-partially. Seven are strong parts of the implementation, five have meaningful
+partially. Nine are strong parts of the implementation, three have meaningful
 support with a clear missing front door, and the MIP solution refiner is outside
 the present NLP/OPF scope.
 
 | Idea family | Current coverage | Remaining work |
 |:--|:--|:--|
-| Summary statistics | Partial | Add one compact summary grouped by MOI function/set type, bridge use, and fingerprint. |
-| Coefficient analysis | Partial | Add static matrix/objective/bounds/RHS ranges and density beside point-local derivative scaling. |
+| Summary statistics | Strong | `model_summary` groups represented function/set types, records counts and fingerprint provenance, and states that portable instantiated-bridge provenance is unavailable. |
+| Coefficient analysis | Strong | `coefficient_profile` reports static linear/quadratic objective and constraint ranges, bounds, normalized RHS values, density, and opaque coverage beside point-local derivative scaling. |
 | Degeneracy | Strong | Add IDS-style dependent-row localization before adopting the IDS name in findings. |
 | Incidence analysis | Strong | Continue calibration and improve explanations of structural versus numerical rank. |
 | Bounds given as constraints | Partial | Add a specific lint finding for exact affine bound rows. |

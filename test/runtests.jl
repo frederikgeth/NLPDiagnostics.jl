@@ -41,6 +41,7 @@ include("range_semantic_contracts.jl")
 include("final_producer_contracts.jl")
 include("initialization_tolerance_contracts.jl")
 include("fingerprints_and_crosscheck.jl")
+include("model_summary.jl")
 include("scaling_covariance.jl")
 include("block_scaling_covariance.jl")
 include("solver_duals.jl")
@@ -113,12 +114,15 @@ end
         name -> name != :Stable,
         names(NLPDiagnostics.Stable; all=false, imported=false),
     )
-    @test length(stable_exports) == 16
+    @test length(stable_exports) == 24
     @test all(isdefined(NLPDiagnostics.Stable, name) for name in stable_exports)
     @test NLPDiagnostics.Stable.ModelSnapshot === NLPDiagnostics.ModelSnapshot
     @test NLPDiagnostics.Stable.snapshot === NLPDiagnostics.snapshot
     @test NLPDiagnostics.Stable.analyze === NLPDiagnostics.analyze
     @test NLPDiagnostics.Stable.report_data === NLPDiagnostics.report_data
+    @test NLPDiagnostics.Stable.model_summary === NLPDiagnostics.model_summary
+    @test NLPDiagnostics.Stable.coefficient_profile ===
+          NLPDiagnostics.coefficient_profile
 
     tier_inventory = read(
         joinpath(normpath(joinpath(@__DIR__, "..")), "docs", "api_tier_inventory_summary.json"),
@@ -156,8 +160,8 @@ end
     ))
     @test stable_surface_summary["schema_version"] == "nlpdiagnostics-stable-api-surface-v1"
     @test stable_surface_summary["status"] == "pass"
-    @test stable_surface_summary["declared_export_count"] == 16
-    @test stable_surface_summary["runtime_export_count"] == 16
+    @test stable_surface_summary["declared_export_count"] == 24
+    @test stable_surface_summary["runtime_export_count"] == 24
     @test stable_surface_summary["surface_matches"] == true
     @test stable_surface_summary["smoke"]["status"] == "pass"
 

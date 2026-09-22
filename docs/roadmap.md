@@ -25,8 +25,8 @@ deeper NLP and OPF evidence layers. The public documentation records the
 
 | Initiative idea | State | Next deliverable or boundary |
 |:--|:--|:--|
-| Summary statistics | Partial | Add `model_summary` with counts by MOI function/set type, bridge inventory when observable, model-data fingerprint, and provenance. |
-| Coefficient analysis | Partial | Add `coefficient_profile` with static matrix, objective, bounds, and RHS ranges plus density. Keep it separate from point-local Jacobian scaling. |
+| Summary statistics | Strong | `model_summary` now reports counts by MOI function/set type, model-data fingerprint and source provenance, plus an explicit portable bridge-observability boundary. |
+| Coefficient analysis | Strong | `coefficient_profile` now reports static linear/quadratic constraint and objective ranges, bounds, normalized RHS values, linear-matrix density, and opaque coverage separately from point-local Jacobian scaling. |
 | Degeneracy | Supported | Add dependent-row localization. Use DegeneracyHunter's “irreducible degenerate set” (IDS) term only when irreducibility has been established. |
 | Incidence analysis | Supported | Retain bipartite incidence, matching, structural rank, connected components, and Dulmage–Mendelsohn terminology shared with MathProgIncidence.jl and Pyomo. |
 | Bounds given as constraints | Partial | Emit a specific `bound_expressed_as_constraint` lint finding for exact affine rows that could be variable bounds. |
@@ -41,7 +41,8 @@ deeper NLP and OPF evidence layers. The public documentation records the
 
 The implementation order for the open items is:
 
-1. build the compact `model_summary` and `coefficient_profile` front door;
+1. maintain the delivered `model_summary` and `coefficient_profile` front door
+   with the unit-scaling teaching fixture;
 2. add the bounds-as-constraints lint and structural-versus-numerical Hessian
    density report;
 3. add objective consistency and applicable primal-dual gap checks;
@@ -201,13 +202,14 @@ The API-tier increment now upgrades `benchmarks/audit_api_tiers.jl` from a
 count-only inventory to a review ledger. All 539 root-only exports have an
 explicit disposition: 102 domain-extension names are Advanced candidates
 pending ownership review, while 437 names require manual legacy compatibility
-and migration review. No root-only export is promoted automatically; the
-Stable and Advanced facades remain unchanged and backward-compatible. The new
-`benchmarks/audit_stable_api_surface.jl` ledger confirms all 16 Stable exports
-match their runtime declaration, all 15 root aliases match by identity, and
-the one-variable snapshot/evaluation/analysis smoke path passes. This
-strengthens the compatibility boundary without expanding Stable or
-reclassifying legacy root exports.
+and migration review. No root-only export is promoted automatically. The
+Advanced facade remains unchanged, while the Stable facade grows only through
+reviewed additive entries. The
+`benchmarks/audit_stable_api_surface.jl` ledger confirms all 24 Stable exports
+match their runtime declaration, all 23 root aliases match by identity, and
+the one-variable snapshot/evaluation/analysis/model-summary smoke path passes.
+The additive expansion supplies the compact model and coefficient front door
+without reclassifying legacy root exports.
 The complementary `benchmarks/audit_advanced_api_surface.jl` ledger also
 confirms all 14 Advanced exports and root aliases, with typed rank-policy and
 unavailable-reason smoke coverage. Both explicit facades are now executable

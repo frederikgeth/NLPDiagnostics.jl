@@ -6,6 +6,12 @@ import NLPDiagnostics
 NLPDiagnostics.snapshot(model::JuMP.Model) =
     NLPDiagnostics.snapshot(JuMP.backend(model))
 
+NLPDiagnostics.coefficient_profile(model::JuMP.Model; kwargs...) =
+    NLPDiagnostics.coefficient_profile(JuMP.backend(model); kwargs...)
+
+NLPDiagnostics.model_summary(model::JuMP.Model; kwargs...) =
+    NLPDiagnostics.model_summary(JuMP.backend(model); kwargs...)
+
 NLPDiagnostics.analyze(model::JuMP.Model; kwargs...) =
     NLPDiagnostics.analyze(JuMP.backend(model); kwargs...)
 

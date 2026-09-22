@@ -49,9 +49,9 @@ is organized for PhD candidates and researchers:
 
 - getting started and reading reports;
 - a repeatable diagnostic research workflow;
-- tutorials on contradictions, initialization, rank, controlled scaling and
-  solver traces, OPF hypotheses, formulation comparison, and a complete
-  three-bus ACP solve;
+- tutorials on coefficient and unit inspection, contradictions, initialization,
+  rank, controlled scaling and solver traces, OPF hypotheses, formulation
+  comparison, and a complete three-bus ACP solve;
 - a symptom-based diagnostic playbook and reproducible experiment template;
 - explanations of evidence, structure, numerical rank, and physical gauges; and
 - the complete Stable API, generated finding-code inventory, prior-art map,
