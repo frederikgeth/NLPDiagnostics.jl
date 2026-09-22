@@ -1,0 +1,32 @@
+schema_version = "nlpdiagnostics-experiment-record-v1"
+experiment_id = "tutorial-controlled-scaling-solver-trace"
+question = "How does normalizing one equality row change local derivative scales and the retained Ipopt trace when the feasible set, objective, start, and solver policy are fixed?"
+hypothesis = "Dividing the product equality by 1e8 will reduce the start-point Jacobian row-scale spread while preserving the physical endpoint. Trace changes will be recorded as observations, not attributed as a universal solver improvement."
+
+[model]
+fixture = "two-variable nonlinear teaching model"
+objective = "(x - 1)^2 + (y - 1)^2"
+physical_equalities = ["x*y - 1 = 0", "x - y = 0"]
+shared_start = [2.0, 0.5]
+
+[intervention]
+baseline_product_row_multiplier = 1.0e8
+candidate_product_row_multiplier = 1.0
+changed_factor_count = 1
+
+[solver]
+name = "Ipopt"
+nlp_scaling_method = "none"
+tol = 1.0e-9
+max_iter = 100
+trace_source = "Ipopt public intermediate callback"
+
+[acceptance]
+endpoint_absolute_tolerance = 1.0e-7
+required_statuses = ["LOCALLY_SOLVED", "OPTIMAL"]
+require_callback_records = true
+require_complete_captured_points = true
+
+[claim_boundary]
+supported = "The controlled row normalization changes the measured local row-scale spread; both runs retain native callback traces and agree at the physical endpoint within the declared tolerance."
+unsupported = "One small run does not establish that row normalization always improves convergence, that callback residual columns share physical units, or that the same intervention is appropriate for another model."

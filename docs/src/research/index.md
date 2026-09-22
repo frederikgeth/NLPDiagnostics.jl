@@ -12,6 +12,8 @@ Start with:
 - [Testing and validation](https://github.com/frederikgeth/NLPDiagnostics.jl/blob/main/docs/testing.md)
 - [Calibration results](https://github.com/frederikgeth/NLPDiagnostics.jl/blob/main/docs/calibration_results.md)
 - [Correctness recovery plan](https://github.com/frederikgeth/NLPDiagnostics.jl/blob/main/docs/recovery_plan.md)
+- [Development roadmap](https://github.com/frederikgeth/NLPDiagnostics.jl/blob/main/docs/roadmap.md)
+- [Prior art and shared terminology](../reference/prior-art.md)
 - [Power diagnostics v2](https://github.com/frederikgeth/NLPDiagnostics.jl/blob/main/docs/power_diagnostics_v2.md)
 
 Machine-generated JSON files in `docs/` are evidence artifacts consumed by the

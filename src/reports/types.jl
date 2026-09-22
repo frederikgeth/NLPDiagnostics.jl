@@ -1,4 +1,9 @@
-# Reporting dimensions are independent: severity is not epistemic confidence.
+"""
+Severity assigned to the practical consequence of a diagnostic finding.
+
+Severity and epistemic confidence are independent: a high-severity finding may
+still require local or heuristic interpretation.
+"""
 @enum Severity::UInt8 begin
     SeverityInfo = 0
     SeverityWarning = 1
@@ -173,6 +178,13 @@ function Evidence(
     return Evidence(String(summary), normalized)
 end
 
+"""
+One classified diagnostic observation with its evidence, affected entities,
+claim basis, confidence, consequence severity, and suggested follow-up actions.
+
+`code` is the durable machine-facing identifier. Renderers should preserve the
+classification fields instead of inferring them from `observation` text.
+"""
 struct Finding
     code::Symbol
     severity::Severity
@@ -215,6 +227,12 @@ function Finding(
     )
 end
 
+"""
+A collection of [`Finding`](@ref) records and string-valued run metadata.
+
+Reports are iterable over their findings. Use [`findings`](@ref) for classified
+filtering and [`report_data`](@ref) for a renderer-neutral representation.
+"""
 struct DiagnosticReport
     findings::Vector{Finding}
     metadata::Dict{Symbol,String}

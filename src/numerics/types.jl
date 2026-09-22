@@ -1,3 +1,4 @@
+"""Typed origin of an [`EvaluationPoint`](@ref)."""
 @enum EvaluationPointKind begin
     UserPoint
     InitializationPoint

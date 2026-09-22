@@ -24,6 +24,7 @@ with the same resolved environment, for example:
 
 ```sh
 julia --startup-file=no --project=docs examples/numerical_rank_at_a_point.jl
+julia --startup-file=no --project=docs examples/controlled_scaling_solver_trace.jl
 ```
 
 The tutorial should include the script and assert the same central claims so

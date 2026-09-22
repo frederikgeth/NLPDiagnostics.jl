@@ -39,6 +39,13 @@ function _optional_get(model, attribute)
     end
 end
 
+"""
+    snapshot(model)
+
+Copy the public variables, constraints, objective, name, and opaque-source
+markers from an MOI model into an immutable [`ModelSnapshot`](@ref). The source
+model is not modified.
+"""
 function snapshot(model::MOI.ModelLike)
     nlp_block = try
         MOI.get(model, MOI.NLPBlock())

@@ -1,7 +1,7 @@
 # Development roadmap
 
 The active correctness-first implementation sequence is now maintained in
-[recovery_plan.md](/Users/uqfgeth/Documents/GitHub/NLPDiagnostics.jl/docs/recovery_plan.md).
+[`recovery_plan.md`](recovery_plan.md).
 The chronology below is retained as the historical implementation and experiment
 ledger; its older gate ordering does not supersede the scientific review fixes.
 
@@ -14,6 +14,46 @@ The roadmap tracks implementation order. The separate
 living scientific ledger for flexible physical bases, residual-block scaling,
 and complex transformations. It retains hypotheses, invariants, rejected ideas,
 experiment protocols, and the current publication boundary as results evolve.
+
+## Model-debugging initiative backlog (2026-09-22)
+
+The [JuMP model-debugging initiative](https://github.com/jump-dev/JuMP.jl/issues/3664)
+is now a standing roadmap input. Its thirteen idea families are tracked below
+so the project retains the quick model-linting front door while developing its
+deeper NLP and OPF evidence layers. The public documentation records the
+[prior art and shared terminology](src/reference/prior-art.md) in more detail.
+
+| Initiative idea | State | Next deliverable or boundary |
+|:--|:--|:--|
+| Summary statistics | Partial | Add `model_summary` with counts by MOI function/set type, bridge inventory when observable, model-data fingerprint, and provenance. |
+| Coefficient analysis | Partial | Add `coefficient_profile` with static matrix, objective, bounds, and RHS ranges plus density. Keep it separate from point-local Jacobian scaling. |
+| Degeneracy | Supported | Add dependent-row localization. Use DegeneracyHunter's “irreducible degenerate set” (IDS) term only when irreducibility has been established. |
+| Incidence analysis | Supported | Retain bipartite incidence, matching, structural rank, connected components, and Dulmage–Mendelsohn terminology shared with MathProgIncidence.jl and Pyomo. |
+| Bounds given as constraints | Partial | Emit a specific `bound_expressed_as_constraint` lint finding for exact affine rows that could be variable bounds. |
+| Variables absent from constraints | Supported | Preserve the current disconnected-variable check and distinguish objective-only variables. |
+| Starting-point analysis | Supported | Preserve point completeness, bound feasibility, domain, finite-value, and derivative evidence with typed provenance. |
+| Domain analysis | Supported | Extend operator coverage and keep proven, possible, and point-local domain claims separate. |
+| Convexity analysis | Partial | Add a seeded campaign of domain-valid point pairs that can produce reproducible convexity counterexamples; retain local Hessian inertia as local evidence. |
+| Reduced infeasible subsystem | Supported | Preserve solver-native conflicts and elastic subset tools. Say “IIS” only after irreducibility is verified; otherwise report a reduced infeasible subsystem. |
+| Dual feasibility report | Supported | Add a concise objective re-evaluation check and a primal-dual gap only for formulations where the comparison is mathematically meaningful. |
+| Hessian analysis | Partial | Add declared structural versus evaluated numerical density and bounded reformulation guidance, motivated by MathOptInterface issue #2527. |
+| MIP solution refiner | Outside current scope | Reconsider only after an explicit decision to extend the package beyond continuous NLP and OPF diagnostics. |
+
+The implementation order for the open items is:
+
+1. build the compact `model_summary` and `coefficient_profile` front door;
+2. add the bounds-as-constraints lint and structural-versus-numerical Hessian
+   density report;
+3. add objective consistency and applicable primal-dual gap checks;
+4. add IDS-style dependent-row localization;
+5. add a reproducible convexity-counterexample campaign; and
+6. keep the MIP solution refiner outside scope unless the mission changes.
+
+The terminology is part of each acceptance condition. Static coefficient
+ranges must not be labelled Jacobian scales; structural rank must not be
+labelled numerical rank; a reduced conflict must not be labelled irreducible;
+and solver-scaled trace metrics must not be presented as physical residuals
+without an explicit coordinate translation.
 
 ### Current status snapshot (2026-08-25)
 
