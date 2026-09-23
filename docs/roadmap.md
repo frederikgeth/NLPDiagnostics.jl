@@ -27,7 +27,7 @@ deeper NLP and OPF evidence layers. The public documentation records the
 |:--|:--|:--|
 | Summary statistics | Strong | `model_summary` now reports counts by MOI function/set type, model-data fingerprint and source provenance, plus an explicit portable bridge-observability boundary. |
 | Coefficient analysis | Strong | `coefficient_profile` now reports static linear/quadratic constraint and objective ranges, bounds, normalized RHS values, linear-matrix density, and opaque coverage separately from point-local Jacobian scaling. |
-| Degeneracy | Strong | `dependent_row_localization` now finds one bounded, point-local numerical dependent row set and verifies every one-row deletion under a fixed threshold. Further cross-point calibration remains open. |
+| Degeneracy | Strong | `dependent_row_localization` finds one bounded, point-local numerical dependent row set and verifies every one-row deletion under a fixed threshold. Cross-point, active-set, and ten-row synthetic calibration are now covered; larger application calibration remains open. |
 | Incidence analysis | Supported | Retain bipartite incidence, matching, structural rank, connected components, and Dulmage–Mendelsohn terminology shared with MathProgIncidence.jl and Pyomo. |
 | Bounds given as constraints | Strong | `bound_expressed_as_constraint` now reports exact one-variable affine rows, their equivalent bounds, and the dual/reporting consequences of changing representation. |
 | Variables absent from constraints | Supported | Preserve the current disconnected-variable check and distinguish objective-only variables. |
@@ -43,8 +43,8 @@ The implementation order for the open items is:
 
 1. maintain the delivered model-summary, coefficient, bounds-as-constraints,
    Hessian-density, and objective-consistency front doors and teaching fixtures;
-2. maintain and calibrate the delivered dependent-row localization, including
-   larger equality and active-set fixtures;
+2. maintain and calibrate the delivered dependent-row localization, extending
+   the equality and active-set fixtures to independently prepared applications;
 3. maintain the delivered seeded convexity-counterexample campaign and extend
    its calibrated domain and source coverage only with explicit evidence; and
 4. keep the MIP solution refiner outside scope unless the mission changes.

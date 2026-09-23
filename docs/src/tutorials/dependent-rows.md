@@ -2,10 +2,10 @@
 
 !!! note "Learning goals"
     After this tutorial, you can locate a small set of dependent Jacobian rows,
-    read the one-row deletion checks, and explain why the result belongs to a
-    point and tolerance policy. **Prerequisites:** [numerical rank at a
-    point](numerical-rank.md). **Time:** about 15 minutes. **Artifact:** a
-    source-labelled, irreducible numerical row set.
+    read the one-row deletion checks, compare results across points, and select
+    a feasible active-row scope. **Prerequisites:** [numerical rank at a
+    point](numerical-rank.md). **Time:** about 25 minutes. **Artifact:** a
+    source-labelled, irreducible numerical row set with two calibration checks.
 
 A rank estimate says how many independent rows the local Jacobian has. It
 does not tell you which equations to inspect. Suppose a model contains
@@ -95,6 +95,67 @@ active-set degeneracy merely because its Jacobian is dependent on another row.
 The method returns one deterministic minimal set; other dependent sets may
 also exist. It stops with an explicit unavailable result when derivatives are
 incomplete or the work guard is exceeded.
+
+## Calibrate across points and row scopes
+
+The companion script
+[`examples/dependent_rows_calibration.jl`](https://github.com/frederikgeth/NLPDiagnostics.jl/blob/main/examples/dependent_rows_calibration.jl)
+holds the rank policy fixed while changing the evaluation point. It uses
+``x+y=1`` and ``x^2=1``. At ``(0,1)``, the second Jacobian row is zero, but
+the quadratic equality is violated. At the feasible point ``(1,0)``, the rows
+``[1,1]`` and ``[2,0]`` are independent. Predict both outcomes first.
+
+```@example dependent_rows
+include(joinpath(pkgdir(NLPDiagnostics), "examples",
+    "dependent_rows_calibration.jl"))
+cases = run_dependent_rows_calibration()
+stationary = cases.stationary.result
+feasible = cases.feasible.result
+@assert stationary.irreducible_under_policy
+@assert feasible.dependent === false
+(
+    stationary = (point = stationary.point.label,
+        rows = [source.name for source in stationary.sources],
+        rank = stationary.selected_rank,
+        threshold = stationary.threshold),
+    feasible = (point = feasible.point.label,
+        rank = feasible.selected_rank,
+        threshold = feasible.threshold),
+)
+```
+
+The threshold is ``10^{-10}`` in both cases. A change in local Jacobian
+dependence is therefore attributable to the point, not a changed tolerance.
+The stationary result is not a constraint-qualification claim because its
+quadratic equality is infeasible there.
+
+At ``(u,v)=(0,0)``, the second fixture has the equality ``u+v=0``, active
+lower inequalities ``u\geq0`` and ``v\geq0``, and an inactive upper
+inequality ``u+v\leq2``. The three selected active rows have rank two and
+pass every one-row deletion. The equality and inactive upper row also have
+identical derivatives, but their two-row dependence says nothing about the
+active set.
+
+```@example dependent_rows
+@assert cases.active.deletion_ranks == [2, 2, 2]
+(
+    active_scope = [source.name for source in cases.active.selected_sources],
+    active_localization = [source.name for source in cases.active.sources],
+    inactive_control = [source.name for source in cases.inactive_pair.sources],
+)
+```
+
+Selecting active rows requires checking each constraint value against its
+set at the same point. Do that check explicitly for a new model; the
+localizer accepts your `rows` selection and does not infer activity. Even at
+a feasible point, this numerical dependence alone does not prove which
+constraint qualification fails or why a solver behaves as it does.
+
+The regression suite also checks a ten-row, eight-variable equality matrix
+with two planted three-row relations. It requires a three-row minimal set,
+all deletion ranks two, and a small left-null residual. That fixture checks
+the bounded deletion procedure beyond the tiny teaching models; it is not a
+performance or OPF study.
 
 ## Exercise
 

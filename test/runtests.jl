@@ -21,6 +21,7 @@ end
 
 include("rank_calibration.jl")
 include("dependent_rows.jl")
+include("dependent_rows_calibration.jl")
 include("convexity_campaign.jl")
 include("rank_statistics_contracts.jl")
 include("benchmark_environment_contracts.jl")

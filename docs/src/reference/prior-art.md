@@ -38,7 +38,7 @@ the present NLP/OPF scope.
 |:--|:--|:--|
 | Summary statistics | Strong | `model_summary` groups represented function/set types, records counts and fingerprint provenance, and states that portable instantiated-bridge provenance is unavailable. |
 | Coefficient analysis | Strong | `coefficient_profile` reports static linear/quadratic objective and constraint ranges, bounds, normalized RHS values, density, and opaque coverage beside point-local derivative scaling. |
-| Degeneracy | Strong | Bounded fixed-threshold deletion now localizes one irreducible numerical dependent row set; broader coverage and cross-point calibration remain open. |
+| Degeneracy | Strong | Bounded fixed-threshold deletion localizes one irreducible numerical dependent row set. Synthetic cross-point and active-set controls are covered; independent application calibration remains open. |
 | Incidence analysis | Strong | Continue calibration and improve explanations of structural versus numerical rank. |
 | Bounds given as constraints | Strong | `bound_expressed_as_constraint` isolates exact one-variable affine rows, reports the equivalent bound, and preserves the distinction between feasible-set equivalence and row/dual semantics. |
 | Variables absent from constraints | Strong | Retain objective-only and genuinely disconnected distinctions. |
