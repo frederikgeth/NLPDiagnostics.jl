@@ -8,6 +8,7 @@ documentation environment:
 julia --project=docs examples/numerical_rank_at_a_point.jl
 julia --project=docs examples/dependent_rows.jl
 julia --project=docs examples/dependent_rows_calibration.jl
+julia --project=docs examples/opf_dependent_rows.jl
 julia --project=docs examples/convexity_counterexamples.jl
 julia --project=docs examples/model_summary_and_units.jl
 julia --project=docs examples/bounds_as_constraints.jl

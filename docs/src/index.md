@@ -21,6 +21,7 @@ formulations, initialization, scaling, and solver behaviour.
 | “Did the model fail, or is my starting point invalid?” | [Model failure or bad start?](tutorials/initialization.md) |
 | “Is this Jacobian rank loss point- or tolerance-specific?” | [Numerical rank at a point](tutorials/numerical-rank.md) |
 | “Which equations create the local row dependency?” | [Locate dependent constraint rows](tutorials/dependent-rows.md) |
+| “Does that row dependency persist in an OPF active set?” | [Calibrate dependent rows on an OPF endpoint](tutorials/opf-dependent-rows.md) |
 | “Can I disprove convexity with a replayable experiment?” | [Find a convexity counterexample](tutorials/convexity-counterexamples.md) |
 | “Did a scaling change alter the solver trajectory?” | [Controlled scaling and solver traces](tutorials/controlled-scaling-trace.md) |
 | “Does this null direction represent an OPF gauge?” | [From NLP evidence to OPF hypotheses](tutorials/opf-hypotheses.md) |

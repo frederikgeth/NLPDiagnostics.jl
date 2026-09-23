@@ -157,6 +157,10 @@ all deletion ranks two, and a small left-null residual. That fixture checks
 the bounded deletion procedure beyond the tiny teaching models; it is not a
 performance or OPF study.
 
+The [OPF endpoint tutorial](opf-dependent-rows.md) applies the same scope and
+deletion checks to the checked-in three-bus ACP formulation after a recorded
+Ipopt solve.
+
 ## Exercise
 
 Change the third equation's right-hand side from ``1`` to ``1.1``. What

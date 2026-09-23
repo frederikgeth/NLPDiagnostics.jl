@@ -238,6 +238,7 @@ remain research-facing while their ownership and contracts are reviewed.
 
 ```@docs
 NLPDiagnostics.jacobian_rank_estimate
+NLPDiagnostics.constraint_feasibility_summary
 NLPDiagnostics.dependent_row_localization
 NLPDiagnostics.dependent_row_localization_data
 NLPDiagnostics.dependent_row_localization_report

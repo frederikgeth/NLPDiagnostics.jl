@@ -22,6 +22,8 @@ independence under a fixed threshold. The [dependent-row
 tutorial](../tutorials/dependent-rows.md) shows how to inspect the source
 equations. Select equality and active rows explicitly when studying constraint
 qualification; the default all-row scope has no activity interpretation.
+The [OPF endpoint calibration](../tutorials/opf-dependent-rows.md) shows how
+to make that selection from evaluated scalar-set evidence.
 
 For example, the derivative of ``g(x)=x^2-1`` is zero at ``x=0``, even though the
 equation has isolated feasible points at ``x=\pm1``. One-point rank loss is not a

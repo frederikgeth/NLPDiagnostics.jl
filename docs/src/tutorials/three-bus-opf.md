@@ -173,6 +173,11 @@ The initial-point errors and accepted returned point should both remain in the
 record. Dropping the failed start would conceal an important part of the solver
 experiment.
 
+For a separate question about Jacobian row dependence at this endpoint, see
+[calibrate dependent rows on an OPF endpoint](opf-dependent-rows.md). That
+companion lesson selects equality and active rows explicitly before localizing
+one minimal numerical set.
+
 ## Exercise
 
 Run the case with a second independently justified start. Freeze its construction
